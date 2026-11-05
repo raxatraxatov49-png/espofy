@@ -1,5 +1,5 @@
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { supabase } from "./supabase";
 
 function safeFileName(file) {
@@ -9,19 +9,62 @@ function safeFileName(file) {
 }
 
 export default function Admin() {
+  const [user, setUser] = useState(null);
+  const [checking, setChecking] = useState(true);
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+
   const [title, setTitle] = useState("");
   const [artist, setArtist] = useState("");
   const [genre, setGenre] = useState("Boshqa");
   const [audio, setAudio] = useState(null);
   const [cover, setCover] = useState(null);
+
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data }) => {
+      setUser(data.session?.user || null);
+      setChecking(false);
+    });
+
+    const { data } = supabase.auth.onAuthStateChange(
+      (_event, session) => {
+        setUser(session?.user || null);
+      }
+    );
+
+    return () => data.subscription.unsubscribe();
+  }, []);
+
+  async function login(e) {
+    e.preventDefault();
+    setMessage("Tekshirilmoqda...");
+
+    const { error } = await supabase.auth.signInWithPassword({
+      email,
+      password
+    });
+
+    if (error) {
+      setMessage("Kirish xatosi: " + error.message);
+    } else {
+      setMessage("Muvaffaqiyatli kirdingiz!");
+      setPassword("");
+    }
+  }
+
+  async function logout() {
+    await supabase.auth.signOut();
+    setMessage("Hisobdan chiqdingiz.");
+  }
 
   async function uploadSong(e) {
     e.preventDefault();
 
-    if (!title || !artist || !audio) {
-      setMessage("Qo‘shiq nomi, ijrochi va MP3 faylni kiriting.");
+    if (!title.trim() || !artist.trim() || !audio) {
+      setMessage("Qo‘shiq nomi, ijrochi va audio faylni kiriting.");
       return;
     }
 
@@ -52,7 +95,7 @@ export default function Admin() {
         const coverUpload = await supabase.storage
           .from("music")
           .upload(coverName, cover, {
-            contentType: cover.type,
+            contentType: cover.type || "image/jpeg",
             upsert: false
           });
 
@@ -66,8 +109,8 @@ export default function Admin() {
       const { error } = await supabase
         .from("songs")
         .insert({
-          title,
-          artist,
+          title: title.trim(),
+          artist: artist.trim(),
           genre,
           audio_url: audioUrl,
           cover_url: coverUrl,
@@ -76,7 +119,7 @@ export default function Admin() {
 
       if (error) throw error;
 
-      setMessage("Qo‘shiq muvaffaqiyatli qo‘shildi!");
+      setMessage("Qo‘shiq muvaffaqiyatli qo‘shildi! 🎵");
       setTitle("");
       setArtist("");
       setGenre("Boshqa");
@@ -91,21 +134,65 @@ export default function Admin() {
     }
   }
 
+  if (checking) {
+    return <div className="admin">Tekshirilmoqda...</div>;
+  }
+
+  if (!user) {
+    return (
+      <div className="admin">
+        <h2>🎵 Espofiy Admin</h2>
+        <p>Admin hisobiga kiring</p>
+
+        <form onSubmit={login}>
+          <input
+            type="email"
+            placeholder="Email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            required
+          />
+
+          <input
+            type="password"
+            placeholder="Parol"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            required
+          />
+
+          <button type="submit">Kirish</button>
+        </form>
+
+        <p>{message}</p>
+      </div>
+    );
+  }
+
   return (
     <div className="admin">
-      <h2>🎵 Espofiy — Admin panel</h2>
+      <h2>🎵 Espofiy Admin panel</h2>
+      <p>{user.email}</p>
+
+      <button type="button" onClick={logout}>
+        Hisobdan chiqish
+      </button>
+
+      <hr />
 
       <form onSubmit={uploadSong}>
         <input
           placeholder="Qo‘shiq nomi"
           value={title}
           onChange={(e) => setTitle(e.target.value)}
+          required
         />
 
         <input
           placeholder="Ijrochi"
           value={artist}
           onChange={(e) => setArtist(e.target.value)}
+          required
         />
 
         <select
