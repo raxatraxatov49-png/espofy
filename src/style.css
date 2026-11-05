@@ -398,3 +398,37 @@ a[href*="netlify.com"] {
 .player {
   bottom: calc(env(safe-area-inset-bottom, 0px) + 94px) !important;
 }
+
+/* PLAYLIST COVER SIZE FIX */
+.playlist-cover,
+.playlist-detail-cover,
+.playlist-preview img,
+.playlist-card img {
+  width: 100% !important;
+  max-width: 110px !important;
+  height: 110px !important;
+  max-height: 110px !important;
+  object-fit: cover !important;
+  border-radius: 18px !important;
+  display: block !important;
+}
+
+.playlist-cover img,
+.playlist-detail-cover img {
+  width: 100% !important;
+  height: 100% !important;
+  max-height: 110px !important;
+  object-fit: cover !important;
+}
+
+.playlist-detail,
+.playlist-preview {
+  overflow: hidden !important;
+}
+
+.playlist-detail img,
+.playlist-preview img {
+  max-width: 110px !important;
+  max-height: 110px !important;
+  object-fit: cover !important;
+}
