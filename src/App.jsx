@@ -4,12 +4,99 @@ import {
   Home, Search, Library, Play, Pause,
   SkipBack, SkipForward, Music2, Headphones,
   Lock, Plus, ArrowLeft, Trash2, X,
-  ListMusic, ImagePlus
+  ListMusic, ImagePlus, Settings, Globe, Check
 } from "lucide-react";
 
 import { supabase } from "./supabase";
 import Admin from "./Admin";
 import "./style.css";
+
+const translations = {
+  uz: {
+    settings: "Sozlamalar",
+    language: "Ilova tili",
+    home: "Bosh sahifa",
+    search: "Qidiruv",
+    library: "Kutubxona",
+    welcome: "MUSIQA OLAMIGA XUSH KELIBSIZ",
+    hello: "Salom! 👋",
+    subtitle: "Sevimli musiqalaringizni tinglang.",
+    newSongs: "Yangi qo‘shiqlar",
+    noSongs: "Hozircha qo‘shiqlar yo‘q.",
+    searchTitle: "Qidiruv",
+    searchPlaceholder: "Qo‘shiq yoki ijrochi...",
+    notFound: "Hech narsa topilmadi.",
+    myPlaylists: "Mening playlistlarim",
+    songs: "ta qo‘shiq",
+    chooseCover: "Muqova rasmini tanlash",
+    emptyPlaylist: "Playlist bo‘sh. + tugmasi orqali qo‘shiq qo‘shing.",
+    addSong: "Qo‘shiq qo‘shish",
+    chooseSong: "Qo‘shiqni tanlang",
+    addToPlaylist: "Playlistga qo‘shish",
+    noPlaylist: "Hali playlist yo‘q",
+    createFirst: "Birinchi playlistingizni yarating!",
+    createPlaylist: "Playlist yaratish",
+    newPlaylist: "Yangi playlist",
+    playlistPlaceholder: "Playlist nomini yozing...",
+    create: "Yaratish",
+    cancel: "Bekor qilish",
+    selectSong: "Qo‘shiq tanlang!",
+    duplicate: "Bu qo‘shiq playlistda bor!",
+    playlistName: "Playlist nomini yozing!",
+    imageOnly: "Faqat rasm tanlang!",
+    imageSize: "Rasm hajmi 5 MB dan oshmasin!",
+    uploadError: "Rasm yuklashda xatolik: ",
+    updated: "Playlist muqovasi yangilandi! 💜",
+    audioMissing: "Audio fayl topilmadi.",
+    loginError: "Kirish xatosi: ",
+    error: "Xatolik: ",
+    deleteConfirm: "playlistini o‘chirmoqchimisiz?",
+    delete: "O‘chirish",
+    languageSaved: "Til saqlandi"
+  },
+  ru: {
+    settings: "Настройки",
+    language: "Язык приложения",
+    home: "Главная",
+    search: "Поиск",
+    library: "Библиотека",
+    welcome: "ДОБРО ПОЖАЛОВАТЬ В МИР МУЗЫКИ",
+    hello: "Привет! 👋",
+    subtitle: "Слушайте любимую музыку.",
+    newSongs: "Новые песни",
+    noSongs: "Пока нет песен.",
+    searchTitle: "Поиск",
+    searchPlaceholder: "Песня или исполнитель...",
+    notFound: "Ничего не найдено.",
+    myPlaylists: "Мои плейлисты",
+    songs: "песен",
+    chooseCover: "Выбрать обложку",
+    emptyPlaylist: "Плейлист пуст. Нажмите +, чтобы добавить песню.",
+    addSong: "Добавить песню",
+    chooseSong: "Выберите песню",
+    addToPlaylist: "Добавить в плейлист",
+    noPlaylist: "Плейлистов пока нет",
+    createFirst: "Создайте свой первый плейлист!",
+    createPlaylist: "Создать плейлист",
+    newPlaylist: "Новый плейлист",
+    playlistPlaceholder: "Введите название плейлиста...",
+    create: "Создать",
+    cancel: "Отмена",
+    selectSong: "Выберите песню!",
+    duplicate: "Эта песня уже есть в плейлисте!",
+    playlistName: "Введите название плейлиста!",
+    imageOnly: "Выберите изображение!",
+    imageSize: "Размер изображения не должен превышать 5 МБ!",
+    uploadError: "Ошибка загрузки изображения: ",
+    updated: "Обложка плейлиста обновлена! 💜",
+    audioMissing: "Аудиофайл не найден.",
+    loginError: "Ошибка входа: ",
+    error: "Ошибка: ",
+    deleteConfirm: "Удалить плейлист?",
+    delete: "Удалить",
+    languageSaved: "Язык сохранён"
+  }
+};
 
 export default function App() {
   const [songs, setSongs] = useState([]);
@@ -26,7 +113,18 @@ export default function App() {
   const [showCreate, setShowCreate] = useState(false);
   const [showAddSong, setShowAddSong] = useState(false);
   const [selectedSongId, setSelectedSongId] = useState("");
+  const [language, setLanguage] = useState(
+    () => localStorage.getItem("espofiy-language") || "uz"
+  );
+  const [showSettings, setShowSettings] = useState(false);
   const audioRef = useRef(null);
+
+  const t = translations[language];
+
+  function changeLanguage(lang) {
+    setLanguage(lang);
+    localStorage.setItem("espofiy-language", lang);
+  }
 
   useEffect(() => {
     async function setupUser() {
@@ -38,7 +136,7 @@ export default function App() {
           await supabase.auth.signInAnonymously();
 
         if (error) {
-          alert("Kirish xatosi: " + error.message);
+          alert(t.loginError + error.message);
           return;
         }
         user = result.user;
@@ -103,7 +201,7 @@ export default function App() {
     const name = newPlaylistName.trim();
 
     if (!name) {
-      alert("Playlist nomini yozing!");
+      alert(t.playlistName);
       return;
     }
 
@@ -112,7 +210,7 @@ export default function App() {
       .insert({ name, user_id: userId });
 
     if (error) {
-      alert("Xatolik: " + error.message);
+      alert(t.error + error.message);
       return;
     }
 
@@ -130,7 +228,7 @@ export default function App() {
       .eq("playlist_id", playlist.id);
 
     if (error) {
-      alert("Xatolik: " + error.message);
+      alert(t.error + error.message);
       return;
     }
 
@@ -140,7 +238,7 @@ export default function App() {
 
   async function addSongToPlaylist() {
     if (!selectedSongId || !selectedPlaylist) {
-      alert("Qo‘shiq tanlang!");
+      alert(t.selectSong);
       return;
     }
 
@@ -153,8 +251,8 @@ export default function App() {
 
     if (error) {
       alert(error.code === "23505"
-        ? "Bu qo‘shiq playlistda bor!"
-        : "Xatolik: " + error.message);
+        ? t.duplicate
+        : t.error + error.message);
       return;
     }
 
@@ -172,7 +270,7 @@ export default function App() {
       .eq("song_id", songId);
 
     if (error) {
-      alert("Xatolik: " + error.message);
+      alert(t.error + error.message);
       return;
     }
 
@@ -184,12 +282,12 @@ export default function App() {
     if (!file || !selectedPlaylist || !userId) return;
 
     if (!file.type.startsWith("image/")) {
-      alert("Faqat rasm tanlang!");
+      alert(t.imageOnly);
       return;
     }
 
     if (file.size > 5 * 1024 * 1024) {
-      alert("Rasm hajmi 5 MB dan oshmasin!");
+      alert(t.imageSize);
       return;
     }
 
@@ -203,7 +301,7 @@ export default function App() {
       .upload(filePath, file);
 
     if (uploadError) {
-      alert("Rasm yuklashda xatolik: " + uploadError.message);
+      alert(t.uploadError + uploadError.message);
       return;
     }
 
@@ -217,7 +315,7 @@ export default function App() {
       .eq("id", selectedPlaylist.id);
 
     if (error) {
-      alert("Xatolik: " + error.message);
+      alert(t.error + error.message);
       return;
     }
 
@@ -227,12 +325,12 @@ export default function App() {
     });
 
     await loadPlaylists();
-    alert("Playlist muqovasi yangilandi! 💜");
+    alert(t.updated);
   }
 
   async function deletePlaylist(playlist) {
     if (!window.confirm(
-      `"${playlist.name}" playlistini o‘chirmoqchimisiz?`
+      `"${playlist.name}" ${t.deleteConfirm}`
     )) return;
 
     const { error } = await supabase
@@ -241,7 +339,7 @@ export default function App() {
       .eq("id", playlist.id);
 
     if (error) {
-      alert("Xatolik: " + error.message);
+      alert(t.error + error.message);
       return;
     }
 
@@ -251,7 +349,7 @@ export default function App() {
 
   function playSong(song) {
     if (!song?.audio_url) {
-      alert("Audio fayl topilmadi.");
+      alert(t.audioMissing);
       return;
     }
 
@@ -309,21 +407,67 @@ export default function App() {
           <div className="logo"><Headphones size={23} /></div>
           <b>Espo<span className="purple">fiy</span></b>
         </div>
-        <button className="profile" onClick={() => setShowAdmin(true)}>
-          <Lock size={19} />
-        </button>
+
+        <div style={{ display: "flex", gap: 9 }}>
+          <button
+            className="profile"
+            onClick={() => setShowSettings(true)}
+            aria-label={t.settings}
+          >
+            <Settings size={19} />
+          </button>
+          <button className="profile" onClick={() => setShowAdmin(true)}>
+            <Lock size={19} />
+          </button>
+        </div>
       </header>
+
+      {showSettings && (
+        <div style={modalStyle} onClick={() => setShowSettings(false)}>
+          <div style={modalCardStyle} onClick={e => e.stopPropagation()}>
+            <div style={modalHeaderStyle}>
+              <b><Settings size={18} /> {t.settings}</b>
+              <button onClick={() => setShowSettings(false)}
+                style={iconButton}><X /></button>
+            </div>
+
+            <p style={{ marginBottom: 14 }}>
+              <Globe size={18} style={{ verticalAlign: "middle" }} />{" "}
+              {t.language}
+            </p>
+
+            {[
+              { id: "uz", flag: "🇺🇿", name: "O‘zbekcha" },
+              { id: "ru", flag: "🇷🇺", name: "Русский" }
+            ].map(item => (
+              <button
+                key={item.id}
+                onClick={() => changeLanguage(item.id)}
+                style={{
+                  ...languageButtonStyle,
+                  border: language === item.id
+                    ? "2px solid #a78bfa"
+                    : "1px solid #40364f"
+                }}
+              >
+                <span>{item.flag} {item.name}</span>
+                {language === item.id && <Check color="#a78bfa" />}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
       <main>
         {tab === "home" && (
           <>
             <section className="welcome">
-              <p className="small">MUSIQA OLAMIGA XUSH KELIBSIZ</p>
-              <h1>Salom! 👋</h1>
-              <p>Sevimli musiqalaringizni tinglang.</p>
+              <p className="small">{t.welcome}</p>
+              <h1>{t.hello}</h1>
+              <p>{t.subtitle}</p>
             </section>
 
-            <h2 className="section-title">Yangi qo‘shiqlar</h2>
+            <h2 className="section-title">{t.newSongs}</h2>
 
             <div className="songs">
               {songs.map(song => (
@@ -346,17 +490,17 @@ export default function App() {
                 </div>
               ))}
               {songs.length === 0 &&
-                <p className="small">Hozircha qo‘shiqlar yo‘q.</p>}
+                <p className="small">{t.noSongs}</p>}
             </div>
           </>
         )}
 
         {tab === "search" && (
           <>
-            <h2 className="section-title">Qidiruv</h2>
+            <h2 className="section-title">{t.searchTitle}</h2>
             <input
               className="search-input"
-              placeholder="Qo‘shiq yoki ijrochi..."
+              placeholder={t.searchPlaceholder}
               value={search}
               onChange={e => setSearch(e.target.value)}
             />
@@ -380,7 +524,7 @@ export default function App() {
                 </div>
               ))}
               {filteredSongs.length === 0 &&
-                <p className="small">Hech narsa topilmadi.</p>}
+                <p className="small">{t.notFound}</p>}
             </div>
           </>
         )}
@@ -399,7 +543,7 @@ export default function App() {
                       {selectedPlaylist.name}
                     </h2>
                     <p className="small">
-                      {playlistSongs.length} ta qo‘shiq
+                      {playlistSongs.length} {t.songs}
                     </p>
                   </div>
                   <button onClick={() => setShowAddSong(true)}
@@ -413,7 +557,7 @@ export default function App() {
                     {selectedPlaylist.cover_url
                       ? <img
                           src={selectedPlaylist.cover_url}
-                          alt="Playlist muqovasi"
+                          alt="Playlist cover"
                           style={coverImageStyle}
                         />
                       : <ListMusic size={55} />}
@@ -421,7 +565,7 @@ export default function App() {
 
                   <label style={coverButtonStyle}>
                     <ImagePlus size={20} />
-                    Muqova rasmini tanlash
+                    {t.chooseCover}
                     <input
                       type="file"
                       accept="image/*"
@@ -454,16 +598,14 @@ export default function App() {
                     </div>
                   ))}
                   {playlistSongs.length === 0 &&
-                    <p className="small">
-                      Playlist bo‘sh. + tugmasi orqali qo‘shiq qo‘shing.
-                    </p>}
+                    <p className="small">{t.emptyPlaylist}</p>}
                 </div>
 
                 {showAddSong && (
                   <div style={modalStyle}>
                     <div style={modalCardStyle}>
                       <div style={modalHeaderStyle}>
-                        <b>Qo‘shiq qo‘shish</b>
+                        <b>{t.addSong}</b>
                         <button onClick={() => setShowAddSong(false)}
                           style={iconButton}><X /></button>
                       </div>
@@ -471,7 +613,7 @@ export default function App() {
                         value={selectedSongId}
                         onChange={e => setSelectedSongId(e.target.value)}
                         style={inputStyle}>
-                        <option value="">Qo‘shiqni tanlang</option>
+                        <option value="">{t.chooseSong}</option>
                         {songs.map(song => (
                           <option key={song.id} value={song.id}>
                             {song.title} — {song.artist}
@@ -480,7 +622,7 @@ export default function App() {
                       </select>
                       <button onClick={addSongToPlaylist}
                         style={mainButtonStyle}>
-                        Playlistga qo‘shish
+                        {t.addToPlaylist}
                       </button>
                     </div>
                   </div>
@@ -489,7 +631,7 @@ export default function App() {
             ) : (
               <>
                 <div style={headerStyle}>
-                  <h2 className="section-title">Mening playlistlarim</h2>
+                  <h2 className="section-title">{t.myPlaylists}</h2>
                   <button onClick={() => setShowCreate(true)}
                     style={iconButton}><Plus /></button>
                 </div>
@@ -506,7 +648,7 @@ export default function App() {
                       </div>
                       <div className="song-info">
                         <b>{playlist.name}</b>
-                        <span>{playlist.songCount} ta qo‘shiq</span>
+                        <span>{playlist.songCount} {t.songs}</span>
                       </div>
                       <button className="play-small"
                         onClick={e => {
@@ -521,11 +663,11 @@ export default function App() {
                   {playlists.length === 0 && (
                     <div className="library-card">
                       <Music2 size={35} />
-                      <h3>Hali playlist yo‘q</h3>
-                      <p>Birinchi playlistingizni yarating!</p>
+                      <h3>{t.noPlaylist}</h3>
+                      <p>{t.createFirst}</p>
                       <button onClick={() => setShowCreate(true)}
                         style={mainButtonStyle}>
-                        <Plus size={18} /> Playlist yaratish
+                        <Plus size={18} /> {t.createPlaylist}
                       </button>
                     </div>
                   )}
@@ -537,19 +679,19 @@ export default function App() {
               <div style={modalStyle}>
                 <div style={modalCardStyle}>
                   <div style={modalHeaderStyle}>
-                    <b>Yangi playlist</b>
+                    <b>{t.newPlaylist}</b>
                     <button onClick={() => setShowCreate(false)}
                       style={iconButton}><X /></button>
                   </div>
                   <input
                     value={newPlaylistName}
                     onChange={e => setNewPlaylistName(e.target.value)}
-                    placeholder="Playlist nomini yozing..."
+                    placeholder={t.playlistPlaceholder}
                     style={inputStyle}
                   />
                   <button onClick={createPlaylist}
                     style={mainButtonStyle}>
-                    <Plus size={18} /> Yaratish
+                    <Plus size={18} /> {t.create}
                   </button>
                 </div>
               </div>
@@ -586,19 +728,19 @@ export default function App() {
           setTab("home");
           setSelectedPlaylist(null);
         }} className={tab === "home" ? "active" : ""}>
-          <Home /><span>Bosh sahifa</span>
+          <Home /><span>{t.home}</span>
         </button>
         <button onClick={() => {
           setTab("search");
           setSelectedPlaylist(null);
         }} className={tab === "search" ? "active" : ""}>
-          <Search /><span>Qidiruv</span>
+          <Search /><span>{t.search}</span>
         </button>
         <button onClick={() => {
           setTab("library");
           setSelectedPlaylist(null);
         }} className={tab === "library" ? "active" : ""}>
-          <Library /><span>Kutubxona</span>
+          <Library /><span>{t.library}</span>
         </button>
       </nav>
     </div>
@@ -614,6 +756,20 @@ const iconButton = {
   display: "flex",
   alignItems: "center",
   justifyContent: "center"
+};
+
+const languageButtonStyle = {
+  width: "100%",
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "space-between",
+  padding: 15,
+  marginBottom: 10,
+  borderRadius: 13,
+  background: "#252033",
+  color: "white",
+  fontSize: 16,
+  cursor: "pointer"
 };
 
 const headerStyle = {
