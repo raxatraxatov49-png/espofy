@@ -300,3 +300,10 @@ button {
     padding-top: 35px;
   }
 }
+
+[data-netlify],
+.netlify-badge,
+#netlify-badge {
+  display: none !important;
+}
+
