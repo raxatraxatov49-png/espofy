@@ -432,3 +432,50 @@ a[href*="netlify.com"] {
   max-height: 110px !important;
   object-fit: cover !important;
 }
+
+/* ESPOFIY — RASMLAR O'LCHAMINI TUZATISH */
+
+.song .cover {
+  width: 55px !important;
+  min-width: 55px !important;
+  max-width: 55px !important;
+  height: 55px !important;
+  min-height: 55px !important;
+  max-height: 55px !important;
+  overflow: hidden !important;
+  flex-shrink: 0 !important;
+  border-radius: 12px !important;
+}
+
+.song .cover img {
+  width: 55px !important;
+  height: 55px !important;
+  min-width: 55px !important;
+  max-width: 55px !important;
+  min-height: 55px !important;
+  max-height: 55px !important;
+  object-fit: cover !important;
+  display: block !important;
+}
+
+.player .mini-cover {
+  width: 39px !important;
+  height: 39px !important;
+  min-width: 39px !important;
+  overflow: hidden !important;
+  flex-shrink: 0 !important;
+}
+
+.player .mini-cover img {
+  width: 39px !important;
+  height: 39px !important;
+  object-fit: cover !important;
+}
+
+[style*="coverPreviewStyle"] {
+  overflow: hidden !important;
+}
+
+img {
+  max-width: 100%;
+}
