@@ -479,3 +479,67 @@ a[href*="netlify.com"] {
 img {
   max-width: 100%;
 }
+
+
+/* PLAYLIST — UZ/RU BIR XIL O'LCHAM */
+
+.library-card {
+  width: 100%;
+  min-width: 0;
+  padding: 14px !important;
+  gap: 10px !important;
+  border-radius: 15px !important;
+}
+
+.library-card h3 {
+  font-size: 15px !important;
+  line-height: 1.3 !important;
+}
+
+.library-card p {
+  font-size: 11px !important;
+  line-height: 1.4 !important;
+}
+
+.library-card button {
+  padding: 10px 12px !important;
+  font-size: 13px !important;
+}
+
+.song {
+  min-width: 0;
+}
+
+.song-info {
+  min-width: 0;
+  overflow: hidden;
+}
+
+.song-info b,
+.song-info span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.song .play-small {
+  flex-shrink: 0;
+}
+
+[style*="maxWidth: 380px"] {
+  max-width: 320px !important;
+}
+
+[style*="width: 150px"] {
+  width: 110px !important;
+  height: 110px !important;
+}
+
+[style*="padding: 20px"] {
+  padding: 14px !important;
+}
+
+[style*="padding: 14px"] {
+  font-size: 14px;
+}
+
