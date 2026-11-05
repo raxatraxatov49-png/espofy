@@ -1,3 +1,4 @@
+
 import React, { useState } from "react";
 import { supabase } from "./supabase";
 
@@ -10,19 +11,25 @@ export default function Admin() {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
 
+  function safeFileName(file) {
+    const extension = file.name.split(".").pop().toLowerCase();
+    const random = Math.random().toString(36).slice(2);
+    return `${Date.now()}-${random}.${extension}`;
+  }
+
   async function uploadSong(e) {
     e.preventDefault();
 
-    if (!title || !artist || !audio) {
+    if (!title.trim() || !artist.trim() || !audio) {
       setMessage("Qo‘shiq nomi, ijrochi va audio faylni tanlang!");
       return;
     }
 
     setLoading(true);
-    setMessage("Yuklanmoqda...");
+    setMessage("Audio yuklanmoqda...");
 
     try {
-      const audioName = `${Date.now()}-${audio.name}`;
+      const audioName = safeFileName(audio);
 
       const audioUpload = await supabase.storage
         .from("music")
@@ -37,7 +44,9 @@ export default function Admin() {
       let coverUrl = null;
 
       if (cover) {
-        const coverName = `${Date.now()}-${cover.name}`;
+        setMessage("Muqova yuklanmoqda...");
+
+        const coverName = safeFileName(cover);
 
         const coverUpload = await supabase.storage
           .from("music")
@@ -50,11 +59,13 @@ export default function Admin() {
           .getPublicUrl(coverName).data.publicUrl;
       }
 
+      setMessage("Musiqa bazaga saqlanmoqda...");
+
       const { error } = await supabase
         .from("songs")
         .insert({
-          title,
-          artist,
+          title: title.trim(),
+          artist: artist.trim(),
           genre,
           audio_url: audioUrl,
           cover_url: coverUrl,
@@ -63,7 +74,7 @@ export default function Admin() {
 
       if (error) throw error;
 
-      setMessage("Musiqa muvaffaqiyatli qo‘shildi!");
+      setMessage("Musiqa muvaffaqiyatli yuklandi!");
 
       setTitle("");
       setArtist("");
@@ -73,9 +84,9 @@ export default function Admin() {
 
     } catch (error) {
       setMessage("Xatolik: " + error.message);
+    } finally {
+      setLoading(false);
     }
-
-    setLoading(false);
   }
 
   return (
@@ -84,7 +95,6 @@ export default function Admin() {
       <p style={styles.subtitle}>Musiqalarni boshqarish paneli</p>
 
       <form onSubmit={uploadSong} style={styles.form}>
-
         <input
           style={styles.input}
           placeholder="Qo‘shiq nomi"
@@ -117,16 +127,14 @@ export default function Admin() {
           🎧 Audio fayl tanlash
           <input
             type="file"
-            accept=".mp3,.m4a,.wav,.aac,.ogg"
+            accept=".mp3,.m4a,.wav,.aac,.ogg,audio/*"
             onChange={e => setAudio(e.target.files?.[0] || null)}
             style={styles.file}
           />
         </label>
 
         {audio && (
-          <p style={styles.selected}>
-            Tanlandi: {audio.name}
-          </p>
+          <p style={styles.selected}>Tanlandi: {audio.name}</p>
         )}
 
         <label style={styles.label}>
@@ -140,15 +148,16 @@ export default function Admin() {
         </label>
 
         {cover && (
-          <p style={styles.selected}>
-            Tanlandi: {cover.name}
-          </p>
+          <p style={styles.selected}>Tanlandi: {cover.name}</p>
         )}
 
         <button
           type="submit"
           disabled={loading}
-          style={styles.button}
+          style={{
+            ...styles.button,
+            opacity: loading ? 0.6 : 1
+          }}
         >
           {loading ? "Yuklanmoqda..." : "MUSIQANI YUKLASH"}
         </button>
@@ -156,7 +165,6 @@ export default function Admin() {
         {message && (
           <p style={styles.message}>{message}</p>
         )}
-
       </form>
     </div>
   );
@@ -208,7 +216,8 @@ const styles = {
   },
   selected: {
     color: "#bd78ff",
-    fontSize: 13
+    fontSize: 13,
+    overflowWrap: "anywhere"
   },
   button: {
     padding: 17,
