@@ -2,38 +2,41 @@
 import React, { useState } from "react";
 import { supabase } from "./supabase";
 
+function safeFileName(file) {
+  const ext = file.name.split(".").pop().toLowerCase();
+  const random = Math.random().toString(36).slice(2);
+  return `${Date.now()}-${random}.${ext}`;
+}
+
 export default function Admin() {
   const [title, setTitle] = useState("");
   const [artist, setArtist] = useState("");
-  const [genre, setGenre] = useState("Pop");
+  const [genre, setGenre] = useState("Boshqa");
   const [audio, setAudio] = useState(null);
   const [cover, setCover] = useState(null);
-  const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
-
-  function safeFileName(file) {
-    const extension = file.name.split(".").pop().toLowerCase();
-    const random = Math.random().toString(36).slice(2);
-    return `${Date.now()}-${random}.${extension}`;
-  }
+  const [loading, setLoading] = useState(false);
 
   async function uploadSong(e) {
     e.preventDefault();
 
-    if (!title.trim() || !artist.trim() || !audio) {
-      setMessage("Qo‘shiq nomi, ijrochi va audio faylni tanlang!");
+    if (!title || !artist || !audio) {
+      setMessage("Qo‘shiq nomi, ijrochi va MP3 faylni kiriting.");
       return;
     }
 
     setLoading(true);
-    setMessage("Audio yuklanmoqda...");
+    setMessage("Yuklanmoqda...");
 
     try {
       const audioName = safeFileName(audio);
 
       const audioUpload = await supabase.storage
         .from("music")
-        .upload(audioName, audio);
+        .upload(audioName, audio, {
+          contentType: audio.type || "audio/mpeg",
+          upsert: false
+        });
 
       if (audioUpload.error) throw audioUpload.error;
 
@@ -44,13 +47,14 @@ export default function Admin() {
       let coverUrl = null;
 
       if (cover) {
-        setMessage("Muqova yuklanmoqda...");
-
         const coverName = safeFileName(cover);
 
         const coverUpload = await supabase.storage
           .from("music")
-          .upload(coverName, cover);
+          .upload(coverName, cover, {
+            contentType: cover.type,
+            upsert: false
+          });
 
         if (coverUpload.error) throw coverUpload.error;
 
@@ -59,13 +63,11 @@ export default function Admin() {
           .getPublicUrl(coverName).data.publicUrl;
       }
 
-      setMessage("Musiqa bazaga saqlanmoqda...");
-
       const { error } = await supabase
         .from("songs")
         .insert({
-          title: title.trim(),
-          artist: artist.trim(),
+          title,
+          artist,
           genre,
           audio_url: audioUrl,
           cover_url: coverUrl,
@@ -74,13 +76,13 @@ export default function Admin() {
 
       if (error) throw error;
 
-      setMessage("Musiqa muvaffaqiyatli yuklandi!");
-
+      setMessage("Qo‘shiq muvaffaqiyatli qo‘shildi!");
       setTitle("");
       setArtist("");
-      setGenre("Pop");
+      setGenre("Boshqa");
       setAudio(null);
       setCover(null);
+      e.target.reset();
 
     } catch (error) {
       setMessage("Xatolik: " + error.message);
@@ -90,146 +92,54 @@ export default function Admin() {
   }
 
   return (
-    <div style={styles.page}>
-      <h1 style={styles.heading}>🎵 Espofiy Admin</h1>
-      <p style={styles.subtitle}>Musiqalarni boshqarish paneli</p>
+    <div className="admin">
+      <h2>🎵 Espofiy — Admin panel</h2>
 
-      <form onSubmit={uploadSong} style={styles.form}>
+      <form onSubmit={uploadSong}>
         <input
-          style={styles.input}
           placeholder="Qo‘shiq nomi"
           value={title}
-          onChange={e => setTitle(e.target.value)}
+          onChange={(e) => setTitle(e.target.value)}
         />
 
         <input
-          style={styles.input}
           placeholder="Ijrochi"
           value={artist}
-          onChange={e => setArtist(e.target.value)}
+          onChange={(e) => setArtist(e.target.value)}
         />
 
         <select
-          style={styles.input}
           value={genre}
-          onChange={e => setGenre(e.target.value)}
+          onChange={(e) => setGenre(e.target.value)}
         >
-          <option value="Pop">Pop</option>
-          <option value="Rap">Rap</option>
-          <option value="Hip-Hop">Hip-Hop</option>
-          <option value="Rock">Rock</option>
-          <option value="Electronic">Electronic</option>
-          <option value="Uzbek">Uzbek</option>
-          <option value="Boshqa">Boshqa</option>
+          <option>Boshqa</option>
+          <option>Pop</option>
+          <option>Rap</option>
+          <option>Rock</option>
+          <option>Uzbek</option>
+          <option>Electronic</option>
         </select>
 
-        <label style={styles.label}>
-          🎧 Audio fayl tanlash
-          <input
-            type="file"
-            accept=".mp3,.m4a,.wav,.aac,.ogg,audio/*"
-            onChange={e => setAudio(e.target.files?.[0] || null)}
-            style={styles.file}
-          />
-        </label>
+        <p>Qo‘shiq fayli:</p>
+        <input
+          type="file"
+          accept="audio/*,.mp3,.m4a,.wav"
+          onChange={(e) => setAudio(e.target.files?.[0] || null)}
+        />
 
-        {audio && (
-          <p style={styles.selected}>Tanlandi: {audio.name}</p>
-        )}
+        <p>Muqova rasmi (ixtiyoriy):</p>
+        <input
+          type="file"
+          accept="image/*"
+          onChange={(e) => setCover(e.target.files?.[0] || null)}
+        />
 
-        <label style={styles.label}>
-          🖼 Muqova rasmi tanlash
-          <input
-            type="file"
-            accept="image/*"
-            onChange={e => setCover(e.target.files?.[0] || null)}
-            style={styles.file}
-          />
-        </label>
-
-        {cover && (
-          <p style={styles.selected}>Tanlandi: {cover.name}</p>
-        )}
-
-        <button
-          type="submit"
-          disabled={loading}
-          style={{
-            ...styles.button,
-            opacity: loading ? 0.6 : 1
-          }}
-        >
-          {loading ? "Yuklanmoqda..." : "MUSIQANI YUKLASH"}
+        <button type="submit" disabled={loading}>
+          {loading ? "Yuklanmoqda..." : "Qo‘shiqni yuklash"}
         </button>
-
-        {message && (
-          <p style={styles.message}>{message}</p>
-        )}
       </form>
+
+      <p>{message}</p>
     </div>
   );
 }
-
-const styles = {
-  page: {
-    minHeight: "100vh",
-    background: "#090710",
-    color: "white",
-    padding: "30px 18px",
-    fontFamily: "Arial"
-  },
-  heading: {
-    color: "#bd78ff",
-    fontSize: 27
-  },
-  subtitle: {
-    color: "#aaa",
-    marginTop: 8
-  },
-  form: {
-    display: "grid",
-    gap: 18,
-    marginTop: 30
-  },
-  input: {
-    width: "100%",
-    padding: 16,
-    borderRadius: 12,
-    border: "1px solid #453052",
-    background: "#171320",
-    color: "white",
-    fontSize: 15
-  },
-  label: {
-    display: "grid",
-    gap: 12,
-    padding: 16,
-    border: "1px dashed #933ee0",
-    borderRadius: 12,
-    color: "#c27aff"
-  },
-  file: {
-    display: "block",
-    width: "100%",
-    color: "white",
-    fontSize: 14
-  },
-  selected: {
-    color: "#bd78ff",
-    fontSize: 13,
-    overflowWrap: "anywhere"
-  },
-  button: {
-    padding: 17,
-    borderRadius: 12,
-    background: "#933ee0",
-    color: "white",
-    fontWeight: "bold",
-    border: 0,
-    fontSize: 15
-  },
-  message: {
-    color: "#bd78ff",
-    overflowWrap: "anywhere"
-  }
-};
