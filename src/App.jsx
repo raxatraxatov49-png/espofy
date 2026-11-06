@@ -964,3 +964,5 @@ const coverButtonStyle = {
   fontWeight: "bold",
   cursor: "pointer"
 };
+
+const countedPlayRef = useRef(null);
