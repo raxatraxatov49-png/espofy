@@ -213,6 +213,11 @@ export default function App() {
   const [songs, setSongs] = useState([]);
   const [playlists, setPlaylists] = useState([]);
   const [playlistSongs, setPlaylistSongs] = useState([]);
+
+  // E'LONLAR UCHUN STATE
+  const [announcements, setAnnouncements] = useState([]);
+  const [announcementIndex, setAnnouncementIndex] = useState(0);
+
   const [userId, setUserId] = useState(null);
   const [playing, setPlaying] = useState(false);
   const [currentSong, setCurrentSong] = useState(null);
@@ -363,6 +368,54 @@ export default function App() {
 
     setSongs(data || []);
   }
+
+  // E'LONLARNI SUPABASE'DAN YUKLASH
+  async function loadAnnouncements() {
+    const { data, error } = await supabase
+      .from("announcements")
+      .select("id, title, message, created_at")
+      .eq("is_active", true)
+      .order("created_at", { ascending: false });
+
+    if (error) {
+      console.error("E'lonlarni yuklash:", error.message);
+      return;
+    }
+
+    setAnnouncements(data || []);
+  }
+
+  // ILOVA OCHILGANDA VA HAR 15 SONIYADA E'LONLARNI YANGILASH
+  useEffect(() => {
+    loadAnnouncements();
+
+    const refreshInterval = setInterval(() => {
+      loadAnnouncements();
+    }, 15000);
+
+    return () => clearInterval(refreshInterval);
+  }, []);
+
+  // E'LONLARNI HAR 5 SONIYADA ALMASHTIRISH
+  useEffect(() => {
+    if (announcements.length <= 1) {
+      setAnnouncementIndex(0);
+      return;
+    }
+
+    const rotationInterval = setInterval(() => {
+      setAnnouncementIndex(prev =>
+        (prev + 1) % announcements.length
+      );
+    }, 5000);
+
+    return () => clearInterval(rotationInterval);
+  }, [announcements.length]);
+
+  // YANGI E'LON KELGANDA BIRINCHISIDAN BOSHLASH
+  useEffect(() => {
+    setAnnouncementIndex(0);
+  }, [announcements]);
 
   useEffect(() => {
     if (userId) {
@@ -918,10 +971,42 @@ export default function App() {
       >
         {tab === "home" && (
           <>
-            <section className="welcome">
-              <p className="small">{t.welcome}</p>
-              <h1>{t.hello}</h1>
-              <p>{t.subtitle}</p>
+            {/* E'LONLAR CHIQADIGAN JOY */}
+            <section className="welcome announcement-welcome">
+              {announcements.length > 0 ? (
+                <>
+                  <p className="small">
+                    ESPOFIY • E'LON
+                  </p>
+
+                  <h1 key={announcements[announcementIndex]?.id}>
+                    {announcements[announcementIndex]?.title}
+                  </h1>
+
+                  <p key={`message-${announcements[announcementIndex]?.id}`}>
+                    {announcements[announcementIndex]?.message}
+                  </p>
+
+                  {announcements.length > 1 && (
+                    <div className="announcement-dots">
+                      {announcements.map((item, index) => (
+                        <span
+                          key={item.id}
+                          className={
+                            index === announcementIndex ? "active" : ""
+                          }
+                        />
+                      ))}
+                    </div>
+                  )}
+                </>
+              ) : (
+                <>
+                  <p className="small">{t.welcome}</p>
+                  <h1>{t.hello}</h1>
+                  <p>{t.subtitle}</p>
+                </>
+              )}
             </section>
 
             <h2 className="section-title">
