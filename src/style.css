@@ -1,4 +1,3 @@
-
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
 
 * {
@@ -115,8 +114,11 @@ button {
   color: #b879ff;
 }
 
+/* MUSIQA RO'YXATI */
+
 .songs {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: 12px;
 }
 
@@ -128,14 +130,18 @@ button {
   border-radius: 16px;
   background: #171320;
   border: 1px solid #ffffff08;
+  min-width: 0;
 }
 
 .cover {
   width: 55px;
   height: 55px;
+  min-width: 55px;
   border-radius: 12px;
   display: grid;
   place-items: center;
+  overflow: hidden;
+  flex-shrink: 0;
 }
 
 .song-info {
@@ -143,6 +149,8 @@ button {
   display: flex;
   flex-direction: column;
   gap: 5px;
+  min-width: 0;
+  overflow: hidden;
 }
 
 .song-info b {
@@ -154,14 +162,143 @@ button {
   font-size: 12px;
 }
 
+.song-info b,
+.song-info span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .play-small {
   width: 38px;
   height: 38px;
+  min-width: 38px;
   border-radius: 50%;
   background: #762fc0;
   display: grid;
   place-items: center;
+  flex-shrink: 0;
 }
+
+/* BOSH SAHIFADA 2 TADAN KARTOCHKA */
+
+.songs-grid {
+  display: grid !important;
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  gap: 12px !important;
+  align-items: stretch;
+}
+
+.song-grid-card {
+  position: relative;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: stretch !important;
+  gap: 10px !important;
+  padding: 10px !important;
+  min-width: 0;
+  border-radius: 17px !important;
+  background: linear-gradient(145deg, #1d1728, #13101c) !important;
+  border: 1px solid rgba(190, 140, 255, 0.13) !important;
+  overflow: hidden;
+}
+
+.song-grid-card .universal-cover {
+  width: 100% !important;
+  height: auto !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  max-width: none !important;
+  aspect-ratio: 1 / 1 !important;
+  border-radius: 13px !important;
+}
+
+.song-grid-card .song-info {
+  width: 100%;
+  padding: 0 2px 3px;
+  padding-right: 38px;
+  gap: 5px;
+}
+
+.song-grid-card .song-info b {
+  font-size: 13px;
+  line-height: 1.35;
+  white-space: normal;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+}
+
+.song-grid-card .song-info span {
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.song-grid-card .play-small {
+  position: absolute;
+  right: 10px;
+  bottom: 10px;
+  width: 32px;
+  height: 32px;
+  min-width: 32px;
+  background: linear-gradient(135deg, #a855f7, #702bc0);
+  box-shadow: 0 4px 14px rgba(142, 55, 220, 0.35);
+}
+
+/* BARCHA MUSIQALAR UCHUN BIR XIL MUQOVA */
+
+.universal-cover {
+  position: relative;
+  width: 55px;
+  height: 55px;
+  min-width: 55px;
+  min-height: 55px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  flex-shrink: 0;
+  border-radius: 12px;
+  background:
+    radial-gradient(circle at 50% 45%, rgba(124, 58, 237, 0.32), transparent 52%),
+    linear-gradient(145deg, #090711 0%, #211333 55%, #100b1b 100%);
+  border: 1px solid rgba(190, 140, 255, 0.22);
+}
+
+.cover-glow {
+  position: absolute;
+  width: 65%;
+  height: 65%;
+  border-radius: 50%;
+  background: #9333ea;
+  filter: blur(28px);
+  opacity: 0.23;
+}
+
+.cover-art {
+  position: relative;
+  z-index: 1;
+  width: 82%;
+  height: 82%;
+  overflow: visible;
+}
+
+.cover-brand {
+  position: absolute;
+  z-index: 2;
+  bottom: 5px;
+  left: 0;
+  width: 100%;
+  text-align: center;
+  color: rgba(230, 210, 255, 0.75);
+  font-size: 6px;
+  font-weight: 900;
+  letter-spacing: 2px;
+}
+
+/* KUTUBXONA */
 
 .library-card {
   display: flex;
@@ -179,14 +316,85 @@ button {
   gap: 6px;
 }
 
-.library-card b {
+.library-card b,
+.library-card h3 {
   color: white;
 }
 
-.library-card span {
+.library-card span,
+.library-card p {
   font-size: 11px;
   color: #a49aaf;
 }
+
+.library-card {
+  width: 100%;
+  min-width: 0;
+  padding: 14px !important;
+  gap: 10px !important;
+  border-radius: 15px !important;
+}
+
+.library-card h3 {
+  font-size: 15px !important;
+  line-height: 1.3 !important;
+}
+
+.library-card p {
+  font-size: 11px !important;
+  line-height: 1.4 !important;
+}
+
+.library-card button {
+  padding: 10px 12px !important;
+  font-size: 13px !important;
+}
+
+/* PLAYLIST MUQOVASI */
+
+.playlist-cover,
+.playlist-detail-cover,
+.playlist-preview img,
+.playlist-card img {
+  width: 100% !important;
+  max-width: 110px !important;
+  height: 110px !important;
+  max-height: 110px !important;
+  object-fit: cover !important;
+  border-radius: 18px !important;
+  display: block !important;
+}
+
+.playlist-cover img,
+.playlist-detail-cover img {
+  width: 100% !important;
+  height: 100% !important;
+  max-height: 110px !important;
+  object-fit: cover !important;
+}
+
+.playlist-detail,
+.playlist-preview {
+  overflow: hidden !important;
+}
+
+.playlist-detail img,
+.playlist-preview img {
+  max-width: 110px !important;
+  max-height: 110px !important;
+  object-fit: cover !important;
+}
+
+.playlist-row-cover {
+  width: 55px !important;
+  min-width: 55px !important;
+  max-width: 55px !important;
+  height: 55px !important;
+  min-height: 55px !important;
+  max-height: 55px !important;
+}
+
+/* PASTKI MINI PLEYER */
 
 .player {
   position: fixed;
@@ -199,37 +407,60 @@ button {
   border: 1px solid #a44bdf66;
   border-radius: 17px;
   background: #21132d;
-  z-index: 10;
+  z-index: 99998 !important;
 }
 
 .player-song {
   display: flex;
   align-items: center;
   gap: 10px;
+  min-width: 0;
+  padding-right: 130px;
 }
 
 .mini-cover {
-  width: 39px;
-  height: 39px;
+  width: 39px !important;
+  height: 39px !important;
+  min-width: 39px !important;
+  min-height: 39px !important;
   border-radius: 9px;
-  background: #7735ae;
-  display: grid;
-  place-items: center;
+  overflow: hidden;
+  flex-shrink: 0;
 }
 
-.player-song div:last-child {
+.mini-cover .universal-cover {
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+  border-radius: 9px;
+}
+
+.mini-cover .cover-brand {
+  display: none;
+}
+
+.player-song-info {
+  min-width: 0;
   display: flex;
   flex-direction: column;
   gap: 4px;
+  overflow: hidden;
 }
 
-.player-song b {
+.player-song-info b {
   font-size: 12px;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
 }
 
-.player-song span {
+.player-song-info span {
   font-size: 10px;
   color: #b2a4c0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
 }
 
 .controls {
@@ -250,82 +481,7 @@ button {
   place-items: center;
 }
 
-.progress {
-  height: 3px;
-  background: #54435f;
-  border-radius: 10px;
-  margin-top: 13px;
-}
-
-.progress div {
-  width: 0%;
-  height: 100%;
-  background: #c27aff;
-}
-
-.bottom-nav {
-  position: fixed;
-  bottom: 0;
-  left: 0;
-  width: 100%;
-  height: 67px;
-  background: #100b18f5;
-  border-top: 1px solid #ffffff12;
-  display: flex;
-  justify-content: space-around;
-  align-items: center;
-  z-index: 20;
-}
-
-.bottom-nav button {
-  background: transparent;
-  color: #82778d;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 5px;
-  font-size: 10px;
-}
-
-.bottom-nav button svg {
-  width: 21px;
-}
-
-.bottom-nav .active {
-  color: #bd78ff;
-}
-
-@media (min-width: 600px) {
-  .app {
-    padding-top: 35px;
-  }
-}
-
-[data-netlify],
-.netlify-badge,
-#netlify-badge {
-  display: none !important;
-}
-[data-netlify],
-.netlify-badge,
-#netlify-badge,
-a[href*="netlify.com"] {
-  display: none !important;
-}
-
-.bottom-nav {
-  position: fixed !important;
-  z-index: 99999 !important;
-  bottom: 0 !important;
-  left: 0;
-  right: 0;
-}
-
-.player {
-  z-index: 99998 !important;
-}
-
-/* ESPOFIY — IPHONE LIQUID GLASS MENU */
+/* PASTKI NAVIGATSIYA */
 
 .bottom-nav {
   position: fixed !important;
@@ -391,139 +547,48 @@ a[href*="netlify.com"] {
   box-shadow: inset 0 0 12px rgba(190,140,255,0.2) !important;
 }
 
+/* QIDIRUV */
+
+.search-input {
+  width: 100%;
+  padding: 14px 15px;
+  margin-bottom: 18px;
+  border-radius: 12px;
+  border: 1px solid #40364f;
+  background: #252033;
+  color: white;
+  font-family: inherit;
+  font-size: 14px;
+  outline: none;
+}
+
+.search-input:focus {
+  border-color: #a855f7;
+}
+
+.search-input::placeholder {
+  color: #92869f;
+}
+
+/* UMUMIY JOYLASHUV */
+
 .app main {
   padding-bottom: 115px !important;
 }
 
-.player {
-  bottom: calc(env(safe-area-inset-bottom, 0px) + 94px) !important;
-}
-
-/* PLAYLIST COVER SIZE FIX */
-.playlist-cover,
-.playlist-detail-cover,
-.playlist-preview img,
-.playlist-card img {
-  width: 100% !important;
-  max-width: 110px !important;
-  height: 110px !important;
-  max-height: 110px !important;
-  object-fit: cover !important;
-  border-radius: 18px !important;
-  display: block !important;
-}
-
-.playlist-cover img,
-.playlist-detail-cover img {
-  width: 100% !important;
-  height: 100% !important;
-  max-height: 110px !important;
-  object-fit: cover !important;
-}
-
-.playlist-detail,
-.playlist-preview {
-  overflow: hidden !important;
-}
-
-.playlist-detail img,
-.playlist-preview img {
-  max-width: 110px !important;
-  max-height: 110px !important;
-  object-fit: cover !important;
-}
-
-/* ESPOFIY — RASMLAR O'LCHAMINI TUZATISH */
-
-.song .cover {
-  width: 55px !important;
-  min-width: 55px !important;
-  max-width: 55px !important;
-  height: 55px !important;
-  min-height: 55px !important;
-  max-height: 55px !important;
-  overflow: hidden !important;
-  flex-shrink: 0 !important;
-  border-radius: 12px !important;
-}
-
-.song .cover img {
-  width: 55px !important;
-  height: 55px !important;
-  min-width: 55px !important;
-  max-width: 55px !important;
-  min-height: 55px !important;
-  max-height: 55px !important;
-  object-fit: cover !important;
-  display: block !important;
-}
-
-.player .mini-cover {
-  width: 39px !important;
-  height: 39px !important;
-  min-width: 39px !important;
-  overflow: hidden !important;
-  flex-shrink: 0 !important;
-}
-
-.player .mini-cover img {
-  width: 39px !important;
-  height: 39px !important;
-  object-fit: cover !important;
-}
-
-[style*="coverPreviewStyle"] {
-  overflow: hidden !important;
+[data-netlify],
+.netlify-badge,
+#netlify-badge,
+a[href*="netlify.com"] {
+  display: none !important;
 }
 
 img {
   max-width: 100%;
 }
 
-
-/* PLAYLIST — UZ/RU BIR XIL O'LCHAM */
-
-.library-card {
-  width: 100%;
-  min-width: 0;
-  padding: 14px !important;
-  gap: 10px !important;
-  border-radius: 15px !important;
-}
-
-.library-card h3 {
-  font-size: 15px !important;
-  line-height: 1.3 !important;
-}
-
-.library-card p {
-  font-size: 11px !important;
-  line-height: 1.4 !important;
-}
-
-.library-card button {
-  padding: 10px 12px !important;
-  font-size: 13px !important;
-}
-
-.song {
-  min-width: 0;
-}
-
-.song-info {
-  min-width: 0;
-  overflow: hidden;
-}
-
-.song-info b,
-.song-info span {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.song .play-small {
-  flex-shrink: 0;
+[style*="coverPreviewStyle"] {
+  overflow: hidden !important;
 }
 
 [style*="maxWidth: 380px"] {
@@ -539,7 +604,43 @@ img {
   padding: 14px !important;
 }
 
-[style*="padding: 14px"] {
-  font-size: 14px;
+@media (min-width: 600px) {
+  .app {
+    padding-top: 35px;
+  }
+
+  .songs-grid {
+    gap: 15px !important;
+  }
+
+  .song-grid-card {
+    padding: 12px !important;
+  }
 }
 
+@media (max-width: 360px) {
+  .app {
+    padding-left: 13px;
+    padding-right: 13px;
+  }
+
+  .songs-grid {
+    gap: 9px !important;
+  }
+
+  .song-grid-card {
+    padding: 8px !important;
+  }
+
+  .song-grid-card .song-info b {
+    font-size: 12px;
+  }
+
+  .song-grid-card .play-small {
+    width: 29px;
+    height: 29px;
+    min-width: 29px;
+    right: 8px;
+    bottom: 8px;
+  }
+}
