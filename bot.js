@@ -1,7 +1,8 @@
+
 import http from "node:http";
 
 const BOT_TOKEN = process.env.BOT_TOKEN;
-const WEB_APP_URL = process.env.WEB_APP_URL || "https://espofy.netlify.app/";
+const WEB_APP_URL = "https://espofy.onrender.com";
 
 const server = http.createServer(async (req, res) => {
   if (req.method === "POST") {
