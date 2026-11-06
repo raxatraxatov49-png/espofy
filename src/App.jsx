@@ -126,9 +126,19 @@ export default function App() {
     localStorage.setItem("espofiy-language", lang);
   }
 
+  // Foydalanuvchini aniqlash va bazaga yozish
   useEffect(() => {
+    let cancelled = false;
+
     async function setupUser() {
-      const { data } = await supabase.auth.getSession();
+      const { data, error: sessionError } =
+        await supabase.auth.getSession();
+
+      if (sessionError) {
+        console.error(sessionError.message);
+        return;
+      }
+
       let user = data.session?.user;
 
       if (!user) {
@@ -139,12 +149,59 @@ export default function App() {
           alert(t.loginError + error.message);
           return;
         }
+
         user = result.user;
       }
 
-      if (user) setUserId(user.id);
+      if (!user || cancelled) return;
+
+      setUserId(user.id);
+
+      const telegramUser =
+        window.Telegram?.WebApp?.initDataUnsafe?.user;
+
+      const displayName = telegramUser
+        ? [
+            telegramUser.first_name,
+            telegramUser.last_name
+          ].filter(Boolean).join(" ") ||
+            telegramUser.username ||
+            null
+        : null;
+
+      const username = telegramUser?.username || null;
+
+      const { error: insertError } = await supabase
+        .from("app_users")
+        .insert({
+          id: user.id,
+          display_name: displayName,
+          username
+        });
+
+      if (insertError?.code === "23505") {
+        const { error: updateError } = await supabase
+          .from("app_users")
+          .update({
+            display_name: displayName,
+            username,
+            last_seen: new Date().toISOString()
+          })
+          .eq("id", user.id);
+
+        if (updateError) {
+          console.error("Foydalanuvchini yangilash:", updateError.message);
+        }
+      } else if (insertError) {
+        console.error("Foydalanuvchini saqlash:", insertError.message);
+      }
     }
+
     setupUser();
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   useEffect(() => {
@@ -162,6 +219,7 @@ export default function App() {
       console.error(error.message);
       return;
     }
+
     setSongs(data || []);
   }
 
@@ -181,11 +239,13 @@ export default function App() {
     }
 
     const list = data || [];
+
     const { data: relations } = await supabase
       .from("playlist_songs")
       .select("playlist_id, song_id");
 
     const counts = {};
+
     (relations || []).forEach(item => {
       counts[item.playlist_id] =
         (counts[item.playlist_id] || 0) + 1;
@@ -205,9 +265,17 @@ export default function App() {
       return;
     }
 
+    if (!userId) {
+      alert("Foydalanuvchi aniqlanmadi. Qayta urinib ko‘ring.");
+      return;
+    }
+
     const { error } = await supabase
       .from("playlists")
-      .insert({ name, user_id: userId });
+      .insert({
+        name,
+        user_id: userId
+      });
 
     if (error) {
       alert(t.error + error.message);
@@ -216,7 +284,7 @@ export default function App() {
 
     setNewPlaylistName("");
     setShowCreate(false);
-    loadPlaylists();
+    await loadPlaylists();
   }
 
   async function openPlaylist(playlist) {
@@ -416,7 +484,11 @@ export default function App() {
           >
             <Settings size={19} />
           </button>
-          <button className="profile" onClick={() => setShowAdmin(true)}>
+
+          <button
+            className="profile"
+            onClick={() => setShowAdmin(true)}
+          >
             <Lock size={19} />
           </button>
         </div>
@@ -477,10 +549,12 @@ export default function App() {
                       ? <img src={song.cover_url} alt="" />
                       : <Music2 />}
                   </div>
+
                   <div className="song-info">
                     <b>{song.title}</b>
                     <span>{song.artist}</span>
                   </div>
+
                   <button className="play-small"
                     onClick={() => playSong(song)}>
                     {currentSong?.id === song.id && playing
@@ -489,6 +563,7 @@ export default function App() {
                   </button>
                 </div>
               ))}
+
               {songs.length === 0 &&
                 <p className="small">{t.noSongs}</p>}
             </div>
@@ -498,6 +573,7 @@ export default function App() {
         {tab === "search" && (
           <>
             <h2 className="section-title">{t.searchTitle}</h2>
+
             <input
               className="search-input"
               placeholder={t.searchPlaceholder}
@@ -513,16 +589,19 @@ export default function App() {
                       ? <img src={song.cover_url} alt="" />
                       : <Music2 />}
                   </div>
+
                   <div className="song-info">
                     <b>{song.title}</b>
                     <span>{song.artist}</span>
                   </div>
+
                   <button className="play-small"
                     onClick={() => playSong(song)}>
                     <Play size={18} fill="white" />
                   </button>
                 </div>
               ))}
+
               {filteredSongs.length === 0 &&
                 <p className="small">{t.notFound}</p>}
             </div>
@@ -538,6 +617,7 @@ export default function App() {
                     style={iconButton}>
                     <ArrowLeft />
                   </button>
+
                   <div style={{ flex: 1 }}>
                     <h2 style={{ margin: 0 }}>
                       {selectedPlaylist.name}
@@ -546,6 +626,7 @@ export default function App() {
                       {playlistSongs.length} {t.songs}
                     </p>
                   </div>
+
                   <button onClick={() => setShowAddSong(true)}
                     style={iconButton}>
                     <Plus />
@@ -586,17 +667,20 @@ export default function App() {
                           ? <img src={song.cover_url} alt="" />
                           : <Music2 />}
                       </div>
+
                       <div className="song-info"
                         onClick={() => playSong(song)}>
                         <b>{song.title}</b>
                         <span>{song.artist}</span>
                       </div>
+
                       <button className="play-small"
                         onClick={() => removeSongFromPlaylist(song.id)}>
                         <X size={18} />
                       </button>
                     </div>
                   ))}
+
                   {playlistSongs.length === 0 &&
                     <p className="small">{t.emptyPlaylist}</p>}
                 </div>
@@ -609,10 +693,12 @@ export default function App() {
                         <button onClick={() => setShowAddSong(false)}
                           style={iconButton}><X /></button>
                       </div>
+
                       <select
                         value={selectedSongId}
                         onChange={e => setSelectedSongId(e.target.value)}
-                        style={inputStyle}>
+                        style={inputStyle}
+                      >
                         <option value="">{t.chooseSong}</option>
                         {songs.map(song => (
                           <option key={song.id} value={song.id}>
@@ -620,6 +706,7 @@ export default function App() {
                           </option>
                         ))}
                       </select>
+
                       <button onClick={addSongToPlaylist}
                         style={mainButtonStyle}>
                         {t.addToPlaylist}
@@ -646,10 +733,12 @@ export default function App() {
                           ? <img src={playlist.cover_url} alt="" />
                           : <ListMusic />}
                       </div>
+
                       <div className="song-info">
                         <b>{playlist.name}</b>
                         <span>{playlist.songCount} {t.songs}</span>
                       </div>
+
                       <button className="play-small"
                         onClick={e => {
                           e.stopPropagation();
@@ -683,12 +772,14 @@ export default function App() {
                     <button onClick={() => setShowCreate(false)}
                       style={iconButton}><X /></button>
                   </div>
+
                   <input
                     value={newPlaylistName}
                     onChange={e => setNewPlaylistName(e.target.value)}
                     placeholder={t.playlistPlaceholder}
                     style={inputStyle}
                   />
+
                   <button onClick={createPlaylist}
                     style={mainButtonStyle}>
                     <Plus size={18} /> {t.create}
@@ -708,15 +799,19 @@ export default function App() {
                 ? <img src={currentSong.cover_url} alt="" />
                 : <Music2 />}
             </div>
+
             <div>
               <b>{currentSong.title}</b>
               <span>{currentSong.artist}</span>
             </div>
           </div>
+
           <div className="controls">
             <button onClick={previousSong}><SkipBack size={19} /></button>
             <button onClick={() => playSong(currentSong)}>
-              {playing ? <Pause size={22} /> : <Play size={22} fill="white" />}
+              {playing
+                ? <Pause size={22} />
+                : <Play size={22} fill="white" />}
             </button>
             <button onClick={nextSong}><SkipForward size={19} /></button>
           </div>
@@ -730,12 +825,14 @@ export default function App() {
         }} className={tab === "home" ? "active" : ""}>
           <Home /><span>{t.home}</span>
         </button>
+
         <button onClick={() => {
           setTab("search");
           setSelectedPlaylist(null);
         }} className={tab === "search" ? "active" : ""}>
           <Search /><span>{t.search}</span>
         </button>
+
         <button onClick={() => {
           setTab("library");
           setSelectedPlaylist(null);
