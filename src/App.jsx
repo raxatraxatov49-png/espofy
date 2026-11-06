@@ -4,7 +4,8 @@ import {
   Home, Search, Library, Play, Pause,
   SkipBack, SkipForward, Music2, Headphones,
   Lock, Plus, ArrowLeft, Trash2, X,
-  ListMusic, ImagePlus, Settings, Globe, Check
+  ListMusic, ImagePlus, Settings, Globe, Check,
+  Upload, Clock, Music
 } from "lucide-react";
 
 import { supabase } from "./supabase";
@@ -18,6 +19,7 @@ const translations = {
     home: "Bosh sahifa",
     search: "Qidiruv",
     library: "Kutubxona",
+    upload: "Yuklash",
     welcome: "MUSIQA OLAMIGA XUSH KELIBSIZ",
     hello: "Salom! 👋",
     subtitle: "Sevimli musiqalaringizni tinglang.",
@@ -52,7 +54,27 @@ const translations = {
     error: "Xatolik: ",
     deleteConfirm: "playlistini o‘chirmoqchimisiz?",
     delete: "O‘chirish",
-    languageSaved: "Til saqlandi"
+    languageSaved: "Til saqlandi",
+    uploadTitle: "Musiqa yuklash",
+    uploadSubtitle: "Qo‘shig‘ingizni yuboring. Admin tekshirgandan keyin ilovada paydo bo‘ladi.",
+    songTitle: "Qo‘shiq nomi",
+    artistName: "Ijrochi nomi",
+    genreName: "Janr (ixtiyoriy)",
+    audioFile: "Audio faylni tanlang",
+    coverFile: "Muqova rasmi (ixtiyoriy)",
+    sendSong: "Admin tasdig‘iga yuborish",
+    sending: "Yuklanmoqda...",
+    fillFields: "Qo‘shiq nomi, ijrochi va audio faylni kiriting!",
+    audioOnly: "Audio fayl tanlang!",
+    audioSize: "Audio fayl hajmi 50 MB dan oshmasin!",
+    sendingError: "Yuklashda xatolik: ",
+    sentSuccess: "Musiqa adminga tekshirish uchun yuborildi! 💜",
+    mySubmissions: "Yuborgan qo‘shiqlarim",
+    waiting: "Tekshiruvda",
+    approved: "Tasdiqlangan",
+    noSubmissions: "Siz hali musiqa yubormagansiz.",
+    chooseAudio: "Audio fayl tanlanmagan",
+    chooseImage: "Rasm tanlash"
   },
   ru: {
     settings: "Настройки",
@@ -60,6 +82,7 @@ const translations = {
     home: "Главная",
     search: "Поиск",
     library: "Библиотека",
+    upload: "Загрузка",
     welcome: "ДОБРО ПОЖАЛОВАТЬ В МИР МУЗЫКИ",
     hello: "Привет! 👋",
     subtitle: "Слушайте любимую музыку.",
@@ -94,9 +117,36 @@ const translations = {
     error: "Ошибка: ",
     deleteConfirm: "Удалить плейлист?",
     delete: "Удалить",
-    languageSaved: "Язык сохранён"
+    languageSaved: "Язык сохранён",
+    uploadTitle: "Загрузить музыку",
+    uploadSubtitle: "Отправьте песню. Она появится в приложении после проверки администратором.",
+    songTitle: "Название песни",
+    artistName: "Имя исполнителя",
+    genreName: "Жанр (необязательно)",
+    audioFile: "Выбрать аудиофайл",
+    coverFile: "Обложка (необязательно)",
+    sendSong: "Отправить на проверку",
+    sending: "Загрузка...",
+    fillFields: "Введите название песни, исполнителя и выберите аудиофайл!",
+    audioOnly: "Выберите аудиофайл!",
+    audioSize: "Размер аудиофайла не должен превышать 50 МБ!",
+    sendingError: "Ошибка загрузки: ",
+    sentSuccess: "Музыка отправлена администратору на проверку! 💜",
+    mySubmissions: "Мои отправленные песни",
+    waiting: "На проверке",
+    approved: "Одобрено",
+    noSubmissions: "Вы ещё не отправляли музыку.",
+    chooseAudio: "Аудиофайл не выбран",
+    chooseImage: "Выбрать изображение"
   }
 };
+
+function safeFileName(name) {
+  return name
+    .normalize("NFKD")
+    .replace(/[^a-zA-Z0-9._-]/g, "_")
+    .slice(-100);
+}
 
 export default function App() {
   const [songs, setSongs] = useState([]);
@@ -117,6 +167,14 @@ export default function App() {
     () => localStorage.getItem("espofiy-language") || "uz"
   );
   const [showSettings, setShowSettings] = useState(false);
+
+  const [uploadTitle, setUploadTitle] = useState("");
+  const [uploadArtist, setUploadArtist] = useState("");
+  const [uploadGenre, setUploadGenre] = useState("");
+  const [uploadAudio, setUploadAudio] = useState(null);
+  const [uploadCover, setUploadCover] = useState(null);
+  const [uploading, setUploading] = useState(false);
+  const [mySubmissions, setMySubmissions] = useState([]);
 
   const audioRef = useRef(null);
   const countedPlayRef = useRef(null);
@@ -225,8 +283,141 @@ export default function App() {
   }
 
   useEffect(() => {
-    if (userId) loadPlaylists();
+    if (userId) {
+      loadPlaylists();
+      loadMySubmissions();
+    }
   }, [userId]);
+
+  async function loadMySubmissions() {
+    if (!userId) return;
+
+    const { data, error } = await supabase
+      .from("songs")
+      .select("id, title, artist, is_published, created_at")
+      .eq("submitted_by", userId)
+      .order("created_at", { ascending: false });
+
+    if (error) {
+      console.error("Yuborilgan musiqalar:", error.message);
+      return;
+    }
+
+    setMySubmissions(data || []);
+  }
+
+  async function submitSong() {
+    if (!uploadTitle.trim() || !uploadArtist.trim() || !uploadAudio) {
+      alert(t.fillFields);
+      return;
+    }
+
+    if (!userId) {
+      alert("Foydalanuvchi aniqlanmadi. Ilovani qayta oching.");
+      return;
+    }
+
+    if (uploadAudio.size > 50 * 1024 * 1024) {
+      alert(t.audioSize);
+      return;
+    }
+
+    if (uploadCover) {
+      if (!uploadCover.type.startsWith("image/")) {
+        alert(t.imageOnly);
+        return;
+      }
+
+      if (uploadCover.size > 5 * 1024 * 1024) {
+        alert(t.imageSize);
+        return;
+      }
+    }
+
+    setUploading(true);
+
+    const folder = `${userId}/submissions`;
+    const audioPath =
+      `${folder}/audio/${Date.now()}-${safeFileName(uploadAudio.name)}`;
+
+    let audioUrl = null;
+    let coverUrl = null;
+    let coverPath = null;
+
+    try {
+      const { error: audioError } = await supabase.storage
+        .from("music")
+        .upload(audioPath, uploadAudio);
+
+      if (audioError) throw audioError;
+
+      const { data: audioData } = supabase.storage
+        .from("music")
+        .getPublicUrl(audioPath);
+
+      audioUrl = audioData.publicUrl;
+
+      if (uploadCover) {
+        coverPath =
+          `${folder}/covers/${Date.now()}-${safeFileName(uploadCover.name)}`;
+
+        const { error: coverError } = await supabase.storage
+          .from("music")
+          .upload(coverPath, uploadCover);
+
+        if (coverError) throw coverError;
+
+        const { data: coverData } = supabase.storage
+          .from("music")
+          .getPublicUrl(coverPath);
+
+        coverUrl = coverData.publicUrl;
+      }
+
+      const { error: insertError } = await supabase
+        .from("songs")
+        .insert({
+          title: uploadTitle.trim(),
+          artist: uploadArtist.trim(),
+          genre: uploadGenre.trim() || null,
+          audio_url: audioUrl,
+          cover_url: coverUrl,
+          is_published: false,
+          submitted_by: userId
+        });
+
+      if (insertError) throw insertError;
+
+      setUploadTitle("");
+      setUploadArtist("");
+      setUploadGenre("");
+      setUploadAudio(null);
+      setUploadCover(null);
+
+      const audioInput = document.getElementById("submission-audio");
+      const coverInput = document.getElementById("submission-cover");
+
+      if (audioInput) audioInput.value = "";
+      if (coverInput) coverInput.value = "";
+
+      await loadMySubmissions();
+      alert(t.sentSuccess);
+    } catch (error) {
+      console.error("Musiqa yuborish:", error);
+
+      if (audioPath) {
+        await supabase.storage.from("music").remove([audioPath]);
+      }
+
+      if (coverPath) {
+        await supabase.storage.from("music").remove([coverPath]);
+      }
+
+      alert(t.sendingError + (error.message || "Noma’lum xatolik"));
+    } finally {
+      setUploading(false);
+    }
+  }
 
   async function loadPlaylists() {
     const { data, error } = await supabase
@@ -636,6 +827,134 @@ export default function App() {
           </>
         )}
 
+        {tab === "upload" && (
+          <>
+            <h2 className="section-title">{t.uploadTitle}</h2>
+            <p className="small" style={{ marginBottom: 20, lineHeight: 1.6 }}>
+              {t.uploadSubtitle}
+            </p>
+
+            <div style={uploadCardStyle}>
+              <label style={formLabelStyle}>{t.songTitle}</label>
+              <input
+                value={uploadTitle}
+                onChange={e => setUploadTitle(e.target.value)}
+                placeholder={t.songTitle}
+                style={inputStyle}
+              />
+
+              <label style={formLabelStyle}>{t.artistName}</label>
+              <input
+                value={uploadArtist}
+                onChange={e => setUploadArtist(e.target.value)}
+                placeholder={t.artistName}
+                style={inputStyle}
+              />
+
+              <label style={formLabelStyle}>{t.genreName}</label>
+              <input
+                value={uploadGenre}
+                onChange={e => setUploadGenre(e.target.value)}
+                placeholder={t.genreName}
+                style={inputStyle}
+              />
+
+              <label style={formLabelStyle}>{t.audioFile}</label>
+              <label style={fileButtonStyle}>
+                <Music size={20} />
+                <span style={{ overflow: "hidden", textOverflow: "ellipsis" }}>
+                  {uploadAudio?.name || t.chooseAudio}
+                </span>
+                <input
+                  id="submission-audio"
+                  type="file"
+                  accept="audio/*,.mp3,.m4a,.wav,.ogg,.flac,.aac"
+                  style={{ display: "none" }}
+                  onChange={e => setUploadAudio(e.target.files?.[0] || null)}
+                />
+              </label>
+
+              <label style={formLabelStyle}>{t.coverFile}</label>
+              <label style={fileButtonStyle}>
+                <ImagePlus size={20} />
+                <span style={{ overflow: "hidden", textOverflow: "ellipsis" }}>
+                  {uploadCover?.name || t.chooseImage}
+                </span>
+                <input
+                  id="submission-cover"
+                  type="file"
+                  accept="image/*"
+                  style={{ display: "none" }}
+                  onChange={e => setUploadCover(e.target.files?.[0] || null)}
+                />
+              </label>
+
+              {uploadCover && (
+                <img
+                  src={URL.createObjectURL(uploadCover)}
+                  alt=""
+                  style={{
+                    width: 100,
+                    height: 100,
+                    objectFit: "cover",
+                    borderRadius: 14,
+                    marginBottom: 15
+                  }}
+                />
+              )}
+
+              <button
+                onClick={submitSong}
+                disabled={uploading}
+                style={{
+                  ...mainButtonStyle,
+                  opacity: uploading ? 0.6 : 1
+                }}
+              >
+                {uploading
+                  ? <><Clock size={18} /> {t.sending}</>
+                  : <><Upload size={18} /> {t.sendSong}</>}
+              </button>
+            </div>
+
+            <h2 className="section-title" style={{ marginTop: 28 }}>
+              {t.mySubmissions}
+            </h2>
+
+            <div className="songs">
+              {mySubmissions.map(item => (
+                <div className="song" key={item.id}>
+                  <div className="cover">
+                    <Music2 />
+                  </div>
+
+                  <div className="song-info">
+                    <b>{item.title}</b>
+                    <span>{item.artist}</span>
+                  </div>
+
+                  <span style={{
+                    fontSize: 11,
+                    color: item.is_published ? "#4ade80" : "#fbbf24",
+                    background: item.is_published
+                      ? "rgba(74,222,128,0.12)"
+                      : "rgba(251,191,36,0.12)",
+                    padding: "6px 9px",
+                    borderRadius: 8,
+                    whiteSpace: "nowrap"
+                  }}>
+                    {item.is_published ? t.approved : t.waiting}
+                  </span>
+                </div>
+              ))}
+
+              {mySubmissions.length === 0 && (
+                <p className="small">{t.noSubmissions}</p>
+              )}
+            </div>
+          </>
+        )}
+
         {tab === "library" && (
           <>
             {selectedPlaylist ? (
@@ -862,6 +1181,14 @@ export default function App() {
         </button>
 
         <button onClick={() => {
+          setTab("upload");
+          setSelectedPlaylist(null);
+          loadMySubmissions();
+        }} className={tab === "upload" ? "active" : ""}>
+          <Upload /><span>{t.upload}</span>
+        </button>
+
+        <button onClick={() => {
           setTab("library");
           setSelectedPlaylist(null);
         }} className={tab === "library" ? "active" : ""}>
@@ -959,6 +1286,36 @@ const mainButtonStyle = {
   justifyContent: "center",
   gap: 8,
   cursor: "pointer"
+};
+
+const uploadCardStyle = {
+  background: "#171321",
+  border: "1px solid #302840",
+  borderRadius: 18,
+  padding: 16,
+  marginBottom: 24
+};
+
+const formLabelStyle = {
+  display: "block",
+  color: "#c4b5d9",
+  fontSize: 13,
+  fontWeight: 600,
+  marginBottom: 8
+};
+
+const fileButtonStyle = {
+  display: "flex",
+  alignItems: "center",
+  gap: 10,
+  padding: 14,
+  borderRadius: 11,
+  border: "1px solid #40364f",
+  background: "#252033",
+  color: "white",
+  marginBottom: 16,
+  cursor: "pointer",
+  minWidth: 0
 };
 
 const coverPreviewStyle = {
