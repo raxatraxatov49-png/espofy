@@ -915,7 +915,6 @@ export default function Admin({ onClose }) {
                   <input
                     style={input}
                     type="file"
-                    accept="audio/*"
                     onChange={e => setSingleAudio(e.target.files?.[0] || null)}
                     required
                   />
@@ -972,7 +971,6 @@ export default function Admin({ onClose }) {
                   <input
                     style={input}
                     type="file"
-                    accept="audio/*"
                     multiple
                     onChange={e => setAudioFiles(Array.from(e.target.files || []))}
                   />
