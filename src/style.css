@@ -487,29 +487,23 @@ button {
   position: fixed !important;
   left: 50% !important;
   right: auto !important;
-  bottom: calc(env(safe-area-inset-bottom, 0px) + 20px) !important;
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 5px) !important;
   transform: translateX(-50%) !important;
-
   width: min(330px, calc(100% - 48px)) !important;
   height: 62px !important;
   padding: 6px 9px !important;
-
   display: flex !important;
   align-items: center !important;
   justify-content: space-around !important;
   gap: 5px !important;
-
   border-radius: 40px !important;
   background: rgba(35, 27, 52, 0.62) !important;
-
   backdrop-filter: blur(25px) saturate(180%) !important;
   -webkit-backdrop-filter: blur(25px) saturate(180%) !important;
-
   border: 1px solid rgba(255,255,255,0.2) !important;
   box-shadow:
     0 8px 30px rgba(0,0,0,0.4),
     inset 0 1px 1px rgba(255,255,255,0.2) !important;
-
   z-index: 999999 !important;
 }
 
@@ -518,13 +512,11 @@ button {
   min-width: 0 !important;
   height: 50px !important;
   padding: 5px 2px !important;
-
   display: flex !important;
   flex-direction: column !important;
   align-items: center !important;
   justify-content: center !important;
   gap: 3px !important;
-
   border: none !important;
   border-radius: 30px !important;
   background: transparent !important;
@@ -645,18 +637,179 @@ img {
   }
 }
 
-.bottom-nav {
-  bottom: calc(env(safe-area-inset-bottom, 0px) + 5px) !important;
+/* =====================================
+   LIGHT MODE — OQ MAVZU
+===================================== */
+
+html[data-theme="light"] body {
+  background: #f4f2f8 !important;
+  color: #191421 !important;
 }
 
-.bottom-nav {
-  bottom: calc(env(safe-area-inset-bottom, 0px) + 0px) !important;
+html[data-theme="light"] .app {
+  background: radial-gradient(
+    ellipse at 80% 0%,
+    #eadbfa 0%,
+    #f7f5fa 55%
+  ) !important;
+  color: #191421 !important;
 }
 
-.bottom-nav {
-  bottom: calc(env(safe-area-inset-bottom, 0px) + 0px) !important;
+html[data-theme="light"] .welcome {
+  background: linear-gradient(135deg, #ead9fb, #f8f3ff) !important;
+  border-color: #d9b9f5 !important;
 }
 
-.bottom-nav {
-  bottom: calc(env(safe-area-inset-bottom, 0px) + 5px) !important;
+html[data-theme="light"] .welcome p {
+  color: #71617e !important;
+}
+
+html[data-theme="light"] .welcome h1 {
+  color: #21152e !important;
+}
+
+html[data-theme="light"] .song,
+html[data-theme="light"] .song-grid-card {
+  background: #ffffff !important;
+  border-color: #e9e1f0 !important;
+  color: #21152e !important;
+  box-shadow: 0 3px 12px rgba(40, 20, 60, 0.05);
+}
+
+html[data-theme="light"] .song-info b {
+  color: #21152e !important;
+}
+
+html[data-theme="light"] .song-info span {
+  color: #81758c !important;
+}
+
+html[data-theme="light"] .library-card {
+  background: #ffffff !important;
+  color: #8b5cf6 !important;
+}
+
+html[data-theme="light"] .library-card h3,
+html[data-theme="light"] .library-card b {
+  color: #21152e !important;
+}
+
+html[data-theme="light"] .library-card p,
+html[data-theme="light"] .library-card span {
+  color: #81758c !important;
+}
+
+html[data-theme="light"] .search-input {
+  background: #ffffff !important;
+  color: #21152e !important;
+  border-color: #ded4e9 !important;
+}
+
+html[data-theme="light"] .search-input::placeholder {
+  color: #9b90a5 !important;
+}
+
+html[data-theme="light"] .player {
+  background: rgba(255, 255, 255, 0.96) !important;
+  border-color: #d9c5ed !important;
+  color: #21152e !important;
+  box-shadow: 0 5px 25px rgba(40, 20, 60, 0.12);
+}
+
+html[data-theme="light"] .player-song-info b {
+  color: #21152e !important;
+}
+
+html[data-theme="light"] .player-song-info span {
+  color: #81758c !important;
+}
+
+html[data-theme="light"] .bottom-nav {
+  background: rgba(255, 255, 255, 0.82) !important;
+  border-color: rgba(150, 120, 180, 0.25) !important;
+  box-shadow: 0 8px 30px rgba(40, 20, 60, 0.14) !important;
+}
+
+html[data-theme="light"] .bottom-nav button {
+  color: #81758c !important;
+}
+
+html[data-theme="light"] .bottom-nav button.active {
+  background: rgba(151, 91, 255, 0.16) !important;
+  color: #7835bd !important;
+}
+
+html[data-theme="light"] .section-title {
+  color: #21152e !important;
+}
+
+html[data-theme="light"] .small {
+  color: #8b55bd !important;
+}
+
+html[data-theme="light"] .profile {
+  background: #e7d8f5 !important;
+  color: #7136a5 !important;
+}
+
+html[data-theme="light"] .player-song-info {
+  color: #21152e !important;
+}
+
+html[data-theme="light"] .universal-cover {
+  background:
+    radial-gradient(circle at 50% 45%, rgba(168, 85, 247, 0.25), transparent 52%),
+    linear-gradient(145deg, #eee2fa, #d9c5f0) !important;
+}
+
+html[data-theme="light"] .cover-brand {
+  color: rgba(85, 40, 120, 0.75) !important;
+}
+
+html[data-theme="light"] .song-grid-card .play-small,
+html[data-theme="light"] .play-small {
+  color: white !important;
+}
+
+html[data-theme="light"] .header {
+  color: #21152e !important;
+}
+
+html[data-theme="light"] .purple {
+  color: #8b3ed0 !important;
+}
+
+html[data-theme="light"] .app main {
+  color: #21152e !important;
+}
+
+/* FORMA VA MODAL OYNALARI */
+
+html[data-theme="light"] input,
+html[data-theme="light"] select {
+  background: #ffffff !important;
+  color: #21152e !important;
+  border-color: #ded4e9 !important;
+}
+
+html[data-theme="light"] input::placeholder {
+  color: #9b90a5 !important;
+}
+
+html[data-theme="light"] label {
+  color: #655475 !important;
+}
+
+html[data-theme="light"] .controls button {
+  color: white !important;
+}
+
+/* MODAL OYNALAR */
+
+html[data-theme="light"] .theme-light {
+  color: #21152e;
+}
+
+html[data-theme="light"] .app > div[style*="position: fixed"] {
+  color: #21152e;
 }
