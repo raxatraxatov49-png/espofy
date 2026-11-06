@@ -3,7 +3,7 @@ import React, { useEffect, useState } from "react";
 import {
   ArrowLeft, Music, Trash2, Upload, LogOut,
   RefreshCw, Headphones, ListMusic,
-  ChevronRight, TrendingUp, Play
+  ChevronRight, TrendingUp, Play, Check, X, Pencil, Save
 } from "lucide-react";
 import { supabase } from "./supabase";
 
@@ -67,6 +67,10 @@ export default function Admin({ onClose }) {
 
   const [songCount, setSongCount] = useState(0);
   const [playlistCount, setPlaylistCount] = useState(0);
+
+  const [editingId, setEditingId] = useState(null);
+  const [editTitle, setEditTitle] = useState("");
+  const [editArtist, setEditArtist] = useState("");
 
   useEffect(() => {
     checkSession();
@@ -183,7 +187,6 @@ export default function Admin({ onClose }) {
 
     setSongCount(songCountResult.count || 0);
     setPlaylistCount(playlistCountResult.count || 0);
-
     setLoading(false);
   }
 
@@ -246,12 +249,93 @@ export default function Admin({ onClose }) {
         .remove(paths);
 
       if (storageError) {
-        setMessage("Musiqa bazadan o'chirildi, Storage faylida xatolik: " + storageError.message);
+        setMessage(
+          "Musiqa bazadan o'chirildi, Storage faylida xatolik: " +
+          storageError.message
+        );
       } else {
         setMessage("Musiqa muvaffaqiyatli o'chirildi!");
       }
     } else {
       setMessage("Musiqa muvaffaqiyatli o'chirildi!");
+    }
+
+    setBusyId(null);
+  }
+
+  async function approveSong(song) {
+    setBusyId(song.id);
+    setError("");
+    setMessage("");
+
+    const { error } = await supabase
+      .from("songs")
+      .update({ is_published: true })
+      .eq("id", song.id);
+
+    if (error) {
+      setError("Tasdiqlashda xatolik: " + error.message);
+    } else {
+      setSongs(prev => prev.map(item =>
+        item.id === song.id
+          ? { ...item, is_published: true }
+          : item
+      ));
+      setMessage(`"${song.title}" tasdiqlandi va ilovaga qo'shildi!`);
+    }
+
+    setBusyId(null);
+  }
+
+  async function rejectSong(song) {
+    const confirmed = window.confirm(
+      `"${song.title}" yuborgan musiqani rad etib, o'chirasizmi?`
+    );
+    if (!confirmed) return;
+
+    await deleteSong(song);
+  }
+
+  function startEditing(song) {
+    setEditingId(song.id);
+    setEditTitle(song.title || "");
+    setEditArtist(song.artist || "");
+    setError("");
+    setMessage("");
+  }
+
+  async function saveSongEdit(song) {
+    if (!editTitle.trim() || !editArtist.trim()) {
+      setError("Musiqa nomi va ijrochisini kiriting.");
+      return;
+    }
+
+    setBusyId(song.id);
+    setError("");
+    setMessage("");
+
+    const { error } = await supabase
+      .from("songs")
+      .update({
+        title: editTitle.trim(),
+        artist: editArtist.trim()
+      })
+      .eq("id", song.id);
+
+    if (error) {
+      setError("Tahrirlashda xatolik: " + error.message);
+    } else {
+      setSongs(prev => prev.map(item =>
+        item.id === song.id
+          ? {
+              ...item,
+              title: editTitle.trim(),
+              artist: editArtist.trim()
+            }
+          : item
+      ));
+      setEditingId(null);
+      setMessage("Musiqa ma'lumotlari saqlandi!");
     }
 
     setBusyId(null);
@@ -426,17 +510,25 @@ export default function Admin({ onClose }) {
     }
   }
 
-  const totalPlays = songs.reduce(
+  const pendingSongs = songs.filter(
+    song => song.is_published === false && song.submitted_by
+  );
+
+  const publishedSongs = songs.filter(
+    song => song.is_published === true
+  );
+
+  const totalPlays = publishedSongs.reduce(
     (sum, song) => sum + Number(song.play_count || 0),
     0
   );
 
-  const topSongs = [...songs]
+  const topSongs = [...publishedSongs]
     .sort((a, b) => Number(b.play_count || 0) - Number(a.play_count || 0))
     .slice(0, 10);
 
   const artistStats = Object.values(
-    songs.reduce((result, song) => {
+    publishedSongs.reduce((result, song) => {
       const name = (song.artist || "Noma'lum").trim();
       const key = name.toLowerCase();
 
@@ -496,19 +588,233 @@ export default function Admin({ onClose }) {
   const sectionButton = (id) => ({
     flex: 1,
     minWidth: 0,
-    border: activeSection === id ? "1px solid #a78bfa" : "1px solid #302a40",
+    border: activeSection === id
+      ? "1px solid #a78bfa"
+      : "1px solid #302a40",
     background: activeSection === id ? "#302344" : "#191724",
     color: "white",
     padding: "11px 5px",
     borderRadius: 10,
     fontSize: 12,
-    fontWeight: 600
+    fontWeight: 600,
+    cursor: "pointer"
   });
 
   const userMap = {};
   users.forEach(user => {
     userMap[user.id] = user;
   });
+
+  function renderSong(song, showSubmitter = false) {
+    const owner = song.submitted_by
+      ? userMap[song.submitted_by]
+      : null;
+
+    return (
+      <div key={song.id} style={{
+        padding: 13,
+        borderBottom: "1px solid #302a40"
+      }}>
+        <div style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 10
+        }}>
+          {song.cover_url ? (
+            <img
+              src={song.cover_url}
+              alt=""
+              style={{
+                width: 48,
+                height: 48,
+                borderRadius: 9,
+                objectFit: "cover",
+                flexShrink: 0
+              }}
+            />
+          ) : (
+            <div style={{
+              width: 48,
+              height: 48,
+              borderRadius: 9,
+              background: "#302344",
+              display: "grid",
+              placeItems: "center",
+              flexShrink: 0
+            }}>
+              <Music size={23} />
+            </div>
+          )}
+
+          <div style={{ flex: 1, minWidth: 0 }}>
+            {editingId === song.id ? (
+              <>
+                <input
+                  style={{ ...input, marginBottom: 5 }}
+                  value={editTitle}
+                  placeholder="Musiqa nomi"
+                  onChange={e => setEditTitle(e.target.value)}
+                />
+                <input
+                  style={{ ...input, marginTop: 5, marginBottom: 5 }}
+                  value={editArtist}
+                  placeholder="Ijrochi"
+                  onChange={e => setEditArtist(e.target.value)}
+                />
+              </>
+            ) : (
+              <>
+                <b style={{
+                  display: "block",
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                  whiteSpace: "nowrap"
+                }}>
+                  {song.title}
+                </b>
+                <small style={{ color: "#aaa" }}>{song.artist}</small>
+              </>
+            )}
+          </div>
+        </div>
+
+        {showSubmitter && (
+          <div style={{
+            marginTop: 10,
+            padding: 10,
+            background: "#100e18",
+            borderRadius: 9
+          }}>
+            <small style={{ color: "#a78bfa" }}>Yuborgan foydalanuvchi</small>
+            <p style={{ margin: "5px 0", fontWeight: 700 }}>
+              {owner?.display_name || "Noma'lum foydalanuvchi"}
+            </p>
+            {owner?.username && (
+              <small style={{ color: "#aaa" }}>
+                @{owner.username}
+              </small>
+            )}
+            <small style={{
+              display: "block",
+              color: "#777",
+              fontSize: 10,
+              wordBreak: "break-all",
+              marginTop: 4
+            }}>
+              ID: {song.submitted_by}
+            </small>
+            <small style={{
+              display: "block",
+              color: "#777",
+              marginTop: 5
+            }}>
+              Yuborilgan: {formatDate(song.created_at)}
+            </small>
+          </div>
+        )}
+
+        {song.audio_url && (
+          <audio
+            controls
+            preload="none"
+            src={song.audio_url}
+            style={{ width: "100%", height: 38, marginTop: 10 }}
+          />
+        )}
+
+        <div style={{
+          display: "flex",
+          flexWrap: "wrap",
+          gap: 7,
+          marginTop: 10
+        }}>
+          {editingId === song.id ? (
+            <>
+              <button
+                disabled={busyId === song.id}
+                onClick={() => saveSongEdit(song)}
+                style={{
+                  ...smallButton,
+                  background: "#176b43",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 5
+                }}
+              >
+                <Save size={15} /> Saqlash
+              </button>
+              <button
+                onClick={() => setEditingId(null)}
+                style={smallButton}
+              >
+                Bekor qilish
+              </button>
+            </>
+          ) : (
+            <button
+              onClick={() => startEditing(song)}
+              style={{
+                ...smallButton,
+                display: "flex",
+                alignItems: "center",
+                gap: 5
+              }}
+            >
+              <Pencil size={15} /> Tahrirlash
+            </button>
+          )}
+
+          {showSubmitter && (
+            <>
+              <button
+                disabled={busyId === song.id}
+                onClick={() => approveSong(song)}
+                style={{
+                  ...smallButton,
+                  background: "#176b43",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 5
+                }}
+              >
+                <Check size={15} /> Tasdiqlash
+              </button>
+
+              <button
+                disabled={busyId === song.id}
+                onClick={() => rejectSong(song)}
+                style={{
+                  ...smallButton,
+                  background: "#672a35",
+                  color: "#ff9ba5",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 5
+                }}
+              >
+                <X size={15} /> Rad etish
+              </button>
+            </>
+          )}
+
+          <button
+            disabled={busyId === song.id}
+            onClick={() => deleteSong(song)}
+            style={{
+              ...smallButton,
+              background: "#4a202b",
+              color: "#ff6b7a",
+              display: "flex",
+              alignItems: "center",
+              gap: 5
+            }}
+          >
+            <Trash2 size={15} /> O'chirish
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div style={{
@@ -603,6 +909,15 @@ export default function Admin({ onClose }) {
               >
                 <Music size={15} /> Musiqa
               </button>
+
+              <button
+                style={sectionButton("pending")}
+                onClick={() => setActiveSection("pending")}
+              >
+                <span style={{ color: "#fbbf24" }}>
+                  Tekshiruv ({pendingSongs.length})
+                </span>
+              </button>
             </div>
 
             {activeSection === "dashboard" && (
@@ -622,8 +937,8 @@ export default function Admin({ onClose }) {
 
                   <div style={card}>
                     <Music color="#a78bfa" />
-                    <h2>{songCount}</h2>
-                    <small>Jami musiqalar</small>
+                    <h2>{publishedSongs.length}</h2>
+                    <small>Chiqarilgan musiqalar</small>
                   </div>
 
                   <div style={card}>
@@ -671,9 +986,7 @@ export default function Admin({ onClose }) {
                             objectFit: "cover"
                           }}
                         />
-                      ) : (
-                        <Music size={22} />
-                      )}
+                      ) : <Music size={22} />}
 
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <b style={{
@@ -737,6 +1050,44 @@ export default function Admin({ onClose }) {
 
                   {artistStats.length === 0 && (
                     <p style={{ color: "#aaa" }}>Hozircha ijrochilar yo'q.</p>
+                  )}
+                </div>
+              </>
+            )}
+
+            {activeSection === "pending" && (
+              <>
+                <div style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  marginBottom: 14
+                }}>
+                  <h3 style={{ margin: 0 }}>Yangi yuborilgan musiqalar</h3>
+                  <button onClick={loadData} style={smallButton}>
+                    <RefreshCw size={17} />
+                  </button>
+                </div>
+
+                <div style={{
+                  ...card,
+                  borderColor: "#6b5124"
+                }}>
+                  <p style={{ margin: 0, color: "#fbbf24" }}>
+                    Tekshiruvda: {pendingSongs.length} ta musiqa
+                  </p>
+                  <small style={{ color: "#aaa" }}>
+                    Musiqani tasdiqlasangiz, u barcha foydalanuvchilarga ko'rinadi.
+                  </small>
+                </div>
+
+                <div style={card}>
+                  {pendingSongs.map(song => renderSong(song, true))}
+
+                  {pendingSongs.length === 0 && (
+                    <p style={{ color: "#aaa", textAlign: "center" }}>
+                      Hozircha tekshiruvda musiqa yo'q.
+                    </p>
                   )}
                 </div>
               </>
@@ -915,6 +1266,7 @@ export default function Admin({ onClose }) {
                   <input
                     style={input}
                     type="file"
+                    accept="audio/*"
                     onChange={e => setSingleAudio(e.target.files?.[0] || null)}
                     required
                   />
@@ -972,6 +1324,7 @@ export default function Admin({ onClose }) {
                     style={input}
                     type="file"
                     multiple
+                    accept="audio/*"
                     onChange={e => setAudioFiles(Array.from(e.target.files || []))}
                   />
 
@@ -1023,72 +1376,13 @@ export default function Admin({ onClose }) {
                 </form>
 
                 <div style={card}>
-                  <h3>Barcha musiqalar ({songs.length})</h3>
+                  <h3>Barcha musiqalar ({publishedSongs.length})</h3>
 
-                  {songs.map(song => (
-                    <div key={song.id} style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 10,
-                      padding: "12px 0",
-                      borderBottom: "1px solid #302a40"
-                    }}>
-                      {song.cover_url ? (
-                        <img
-                          src={song.cover_url}
-                          alt=""
-                          style={{
-                            width: 44,
-                            height: 44,
-                            borderRadius: 8,
-                            objectFit: "cover"
-                          }}
-                        />
-                      ) : <Music size={25} />}
+                  {publishedSongs.map(song => renderSong(song, false))}
 
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <b style={{
-                          display: "block",
-                          overflow: "hidden",
-                          textOverflow: "ellipsis",
-                          whiteSpace: "nowrap"
-                        }}>
-                          {song.title}
-                        </b>
-                        <small style={{
-                          display: "block",
-                          color: "#aaa"
-                        }}>
-                          {song.artist}
-                        </small>
-                        <small style={{
-                          display: "block",
-                          color: "#c4a8ff",
-                          marginTop: 4
-                        }}>
-                          <Headphones
-                            size={12}
-                            style={{ verticalAlign: "middle", marginRight: 4 }}
-                          />
-                          {Number(song.play_count || 0).toLocaleString("uz-UZ")} marta tinglangan
-                        </small>
-                      </div>
-
-                      <button
-                        disabled={busyId === song.id}
-                        onClick={() => deleteSong(song)}
-                        style={{
-                          border: 0,
-                          background: "#4a202b",
-                          color: "#ff6b7a",
-                          borderRadius: 9,
-                          padding: 10
-                        }}
-                      >
-                        {busyId === song.id ? "..." : <Trash2 size={18} />}
-                      </button>
-                    </div>
-                  ))}
+                  {publishedSongs.length === 0 && (
+                    <p style={{ color: "#aaa" }}>Hozircha musiqa yo'q.</p>
+                  )}
                 </div>
               </>
             )}
