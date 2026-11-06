@@ -117,7 +117,9 @@ export default function App() {
     () => localStorage.getItem("espofiy-language") || "uz"
   );
   const [showSettings, setShowSettings] = useState(false);
+
   const audioRef = useRef(null);
+  const countedPlayRef = useRef(null);
 
   const t = translations[language];
 
@@ -126,7 +128,6 @@ export default function App() {
     localStorage.setItem("espofiy-language", lang);
   }
 
-  // Foydalanuvchini aniqlash va bazaga yozish
   useEffect(() => {
     let cancelled = false;
 
@@ -425,17 +426,36 @@ export default function App() {
       if (playing) {
         audioRef.current.pause();
       } else {
+        if (audioRef.current.ended) {
+          countedPlayRef.current = null;
+        }
         audioRef.current.play().catch(() => setPlaying(false));
       }
       return;
     }
 
+    countedPlayRef.current = null;
     setCurrentSong(song);
     setPlaying(true);
 
     if (audioRef.current) {
       audioRef.current.src = song.audio_url;
       audioRef.current.play().catch(() => setPlaying(false));
+    }
+  }
+
+  async function countSongPlay(songId) {
+    if (!songId || countedPlayRef.current === songId) return;
+
+    countedPlayRef.current = songId;
+
+    const { error } = await supabase.rpc("increment_song_play", {
+      song_id: songId
+    });
+
+    if (error) {
+      console.error("Tinglashni hisoblash:", error.message);
+      countedPlayRef.current = null;
     }
   }
 
@@ -465,8 +485,16 @@ export default function App() {
     <div className="app">
       <audio
         ref={audioRef}
-        onEnded={nextSong}
-        onPlay={() => setPlaying(true)}
+        onEnded={() => {
+          countedPlayRef.current = null;
+          nextSong();
+        }}
+        onPlay={() => {
+          setPlaying(true);
+          if (currentSong?.id) {
+            countSongPlay(currentSong.id);
+          }
+        }}
         onPause={() => setPlaying(false)}
       />
 
@@ -964,5 +992,3 @@ const coverButtonStyle = {
   fontWeight: "bold",
   cursor: "pointer"
 };
-
-const countedPlayRef = useRef(null);
