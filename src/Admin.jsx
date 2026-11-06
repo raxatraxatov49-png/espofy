@@ -1,8 +1,10 @@
+
 import React, { useEffect, useState } from "react";
 import {
   ArrowLeft, Music, Trash2, Upload, LogOut,
   RefreshCw, Headphones, ListMusic, ChevronRight,
-  TrendingUp, Play, Check, X, Pencil, Save, Activity
+  TrendingUp, Play, Check, X, Pencil, Save, Activity,
+  Megaphone, Eye, EyeOff
 } from "lucide-react";
 import { supabase } from "./supabase";
 
@@ -93,6 +95,12 @@ export default function Admin() {
   const [playlists, setPlaylists] = useState([]);
   const [playlistSongs, setPlaylistSongs] = useState([]);
 
+  const [announcements, setAnnouncements] = useState([]);
+  const [announcementTitle, setAnnouncementTitle] = useState("");
+  const [announcementMessage, setAnnouncementMessage] = useState("");
+  const [editingAnnouncement, setEditingAnnouncement] = useState(null);
+  const [announcementSaving, setAnnouncementSaving] = useState(false);
+
   const [tab, setTab] = useState("dashboard");
   const [selectedPlaylist, setSelectedPlaylist] = useState(null);
   const [selectedPlaylistSongs, setSelectedPlaylistSongs] = useState([]);
@@ -123,8 +131,10 @@ export default function Admin() {
 
     const { data } = supabase.auth.onAuthStateChange((_event, newSession) => {
       setSession(newSession);
-      if (newSession) verifyAdmin(newSession);
-      else {
+
+      if (newSession) {
+        verifyAdmin(newSession);
+      } else {
         setIsAdmin(false);
         setChecking(false);
       }
@@ -220,20 +230,27 @@ export default function Admin() {
     setLoading(true);
 
     try {
-      const [songsResult, playlistsResult, playlistSongsResult] =
-        await Promise.all([
-          supabase.from("songs").select("*").order("created_at", { ascending: false }),
-          supabase.from("playlists").select("*").order("created_at", { ascending: false }),
-          supabase.from("playlist_songs").select("playlist_id,song_id")
-        ]);
+      const [
+        songsResult,
+        playlistsResult,
+        playlistSongsResult,
+        announcementsResult
+      ] = await Promise.all([
+        supabase.from("songs").select("*").order("created_at", { ascending: false }),
+        supabase.from("playlists").select("*").order("created_at", { ascending: false }),
+        supabase.from("playlist_songs").select("playlist_id,song_id"),
+        supabase.from("announcements").select("*").order("created_at", { ascending: false })
+      ]);
 
       if (songsResult.error) throw songsResult.error;
       if (playlistsResult.error) throw playlistsResult.error;
       if (playlistSongsResult.error) throw playlistSongsResult.error;
+      if (announcementsResult.error) throw announcementsResult.error;
 
       setSongs(songsResult.data || []);
       setPlaylists(playlistsResult.data || []);
       setPlaylistSongs(playlistSongsResult.data || []);
+      setAnnouncements(announcementsResult.data || []);
     } catch (error) {
       console.error(error);
       setMessage("Ma'lumotlarni yuklashda xatolik: " + error.message);
@@ -379,9 +396,7 @@ export default function Admin() {
     if (bulkInput) bulkInput.value = "";
     if (bulkCoverInput) bulkCoverInput.value = "";
 
-    setMessage(
-      `Yuklandi: ${success} ta. Xatolik: ${failed} ta.`
-    );
+    setMessage(`Yuklandi: ${success} ta. Xatolik: ${failed} ta.`);
 
     await loadData();
   }
@@ -482,6 +497,91 @@ export default function Admin() {
     setSelectedPlaylistSongs(
       songs.filter(song => ids.includes(song.id))
     );
+  }
+
+  async function saveAnnouncement(e) {
+    e.preventDefault();
+
+    if (!announcementTitle.trim() || !announcementMessage.trim()) {
+      setMessage("E'lon sarlavhasi va matnini kiriting!");
+      return;
+    }
+
+    setAnnouncementSaving(true);
+    setMessage("");
+
+    try {
+      const values = {
+        title: announcementTitle.trim(),
+        message: announcementMessage.trim()
+      };
+
+      let result;
+
+      if (editingAnnouncement) {
+        result = await supabase
+          .from("announcements")
+          .update(values)
+          .eq("id", editingAnnouncement);
+      } else {
+        result = await supabase
+          .from("announcements")
+          .insert(values);
+      }
+
+      if (result.error) throw result.error;
+
+      setAnnouncementTitle("");
+      setAnnouncementMessage("");
+      setEditingAnnouncement(null);
+
+      setMessage("E'lon saqlandi!");
+      await loadData();
+    } catch (error) {
+      setMessage("E'lon saqlashda xatolik: " + error.message);
+    } finally {
+      setAnnouncementSaving(false);
+    }
+  }
+
+  function editAnnouncement(item) {
+    setEditingAnnouncement(item.id);
+    setAnnouncementTitle(item.title || "");
+    setAnnouncementMessage(item.message || "");
+  }
+
+  async function deleteAnnouncement(id) {
+    if (!window.confirm("Bu e'lonni o'chirmoqchimisiz?")) return;
+
+    try {
+      const { error } = await supabase
+        .from("announcements")
+        .delete()
+        .eq("id", id);
+
+      if (error) throw error;
+
+      setMessage("E'lon o'chirildi!");
+      await loadData();
+    } catch (error) {
+      setMessage("O'chirishda xatolik: " + error.message);
+    }
+  }
+
+  async function toggleAnnouncement(item) {
+    try {
+      const { error } = await supabase
+        .from("announcements")
+        .update({ is_active: !item.is_active })
+        .eq("id", item.id);
+
+      if (error) throw error;
+
+      setMessage("E'lon holati o'zgartirildi!");
+      await loadData();
+    } catch (error) {
+      setMessage("Xatolik: " + error.message);
+    }
   }
 
   const publishedSongs = songs.filter(song => song.is_published === true);
@@ -645,6 +745,7 @@ export default function Admin() {
               >
                 <Save size={16} /> Saqlash
               </button>
+
               <button
                 type="button"
                 style={buttonStyle}
@@ -710,6 +811,7 @@ export default function Admin() {
       <div style={pageStyle}>
         <div style={{ ...cardStyle, maxWidth: 420, margin: "60px auto" }}>
           <h2 style={{ textAlign: "center" }}>Admin panel</h2>
+
           <p style={{ color: "#aaa", textAlign: "center" }}>
             Admin hisobingizga kiring
           </p>
@@ -805,6 +907,7 @@ export default function Admin() {
             }}
           >
             {message}
+
             <button
               type="button"
               onClick={() => setMessage("")}
@@ -833,7 +936,8 @@ export default function Admin() {
             ["dashboard", "Boshqaruv"],
             ["playlists", "Playlistlar"],
             ["music", "Musiqalar"],
-            ["pending", "Tekshiruv"]
+            ["pending", "Tekshiruv"],
+            ["announcements", "E'lonlar"]
           ].map(([key, label]) => (
             <button
               type="button"
@@ -849,10 +953,177 @@ export default function Admin() {
                 color: "white"
               }}
             >
+              {key === "announcements" && <Megaphone size={16} />}
               {label}
             </button>
           ))}
         </div>
+
+        {tab === "announcements" && (
+          <>
+            <h3>
+              <Megaphone size={20} style={{ verticalAlign: "middle" }} /> E'lonlarni boshqarish
+            </h3>
+
+            <form
+              onSubmit={saveAnnouncement}
+              style={{ ...cardStyle, marginBottom: 20 }}
+            >
+              <h4>
+                {editingAnnouncement ? "E'lonni tahrirlash" : "Yangi e'lon qo'shish"}
+              </h4>
+
+              <label>E'lon sarlavhasi</label>
+              <input
+                style={inputStyle}
+                value={announcementTitle}
+                onChange={e => setAnnouncementTitle(e.target.value)}
+                placeholder="Masalan: Yangi musiqalar!"
+                maxLength={100}
+                required
+              />
+
+              <label>E'lon matni</label>
+              <textarea
+                style={{
+                  ...inputStyle,
+                  minHeight: 110,
+                  resize: "vertical",
+                  fontFamily: "Arial, sans-serif"
+                }}
+                value={announcementMessage}
+                onChange={e => setAnnouncementMessage(e.target.value)}
+                placeholder="E'lon matnini yozing..."
+                maxLength={1000}
+                required
+              />
+
+              <button
+                type="submit"
+                style={{ ...primaryButton, width: "100%" }}
+                disabled={announcementSaving}
+              >
+                <Save size={17} />
+                {announcementSaving
+                  ? "Saqlanmoqda..."
+                  : editingAnnouncement
+                    ? "O'zgarishlarni saqlash"
+                    : "E'lonni qo'shish"}
+              </button>
+
+              {editingAnnouncement && (
+                <button
+                  type="button"
+                  style={{
+                    ...buttonStyle,
+                    background: "#373044",
+                    color: "white",
+                    width: "100%",
+                    marginTop: 8
+                  }}
+                  onClick={() => {
+                    setEditingAnnouncement(null);
+                    setAnnouncementTitle("");
+                    setAnnouncementMessage("");
+                  }}
+                >
+                  Bekor qilish
+                </button>
+              )}
+            </form>
+
+            <h3>Barcha e'lonlar ({announcements.length})</h3>
+
+            {announcements.map(item => (
+              <div
+                key={item.id}
+                style={{
+                  ...cardStyle,
+                  marginBottom: 12
+                }}
+              >
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    gap: 10,
+                    alignItems: "center"
+                  }}
+                >
+                  <strong style={{ overflowWrap: "anywhere" }}>
+                    {item.title}
+                  </strong>
+
+                  <span
+                    style={{
+                      color: item.is_active ? "#4ade80" : "#f87171",
+                      fontSize: 12,
+                      flexShrink: 0
+                    }}
+                  >
+                    {item.is_active ? "Faol" : "Yashirilgan"}
+                  </span>
+                </div>
+
+                <p
+                  style={{
+                    color: "#bbb",
+                    fontSize: 14,
+                    lineHeight: 1.5,
+                    whiteSpace: "pre-wrap",
+                    overflowWrap: "anywhere"
+                  }}
+                >
+                  {item.message}
+                </p>
+
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+                  <button
+                    type="button"
+                    style={item.is_active ? buttonStyle : greenButton}
+                    onClick={() => toggleAnnouncement(item)}
+                  >
+                    {item.is_active ? (
+                      <>
+                        <EyeOff size={16} /> Yashirish
+                      </>
+                    ) : (
+                      <>
+                        <Eye size={16} /> Ko'rsatish
+                      </>
+                    )}
+                  </button>
+
+                  <button
+                    type="button"
+                    style={{
+                      ...buttonStyle,
+                      background: "#373044",
+                      color: "white"
+                    }}
+                    onClick={() => editAnnouncement(item)}
+                  >
+                    <Pencil size={16} /> Tahrirlash
+                  </button>
+
+                  <button
+                    type="button"
+                    style={dangerButton}
+                    onClick={() => deleteAnnouncement(item.id)}
+                  >
+                    <Trash2 size={16} /> O'chirish
+                  </button>
+                </div>
+              </div>
+            ))}
+
+            {!announcements.length && (
+              <div style={cardStyle}>
+                Hozircha e'lonlar yo'q.
+              </div>
+            )}
+          </>
+        )}
 
         {tab === "dashboard" && (
           <>
@@ -888,6 +1159,12 @@ export default function Admin() {
                 <h2>{pendingSongs.length}</h2>
                 <div style={{ color: "#aaa" }}>Tekshiruvda</div>
               </div>
+
+              <div style={cardStyle}>
+                <Megaphone color="#a78bfa" />
+                <h2>{announcements.filter(item => item.is_active).length}</h2>
+                <div style={{ color: "#aaa" }}>Faol e'lonlar</div>
+              </div>
             </div>
 
             <h3 style={{ marginTop: 28 }}>
@@ -909,12 +1186,14 @@ export default function Admin() {
                   <strong style={{ color: "#a78bfa", minWidth: 25 }}>
                     {index + 1}.
                   </strong>
+
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontWeight: 700 }}>{song.title}</div>
                     <div style={{ color: "#aaa", fontSize: 13 }}>
                       {song.artist}
                     </div>
                   </div>
+
                   <div style={{ whiteSpace: "nowrap", color: "#c4b5fd" }}>
                     <Play size={14} style={{ verticalAlign: "middle" }} />{" "}
                     {Number(song.play_count) || 0}
@@ -940,12 +1219,14 @@ export default function Admin() {
                   }}
                 >
                   <strong style={{ color: "#a78bfa" }}>{index + 1}.</strong>
+
                   <div style={{ flex: 1 }}>
                     <div style={{ fontWeight: 700 }}>{item.name}</div>
                     <div style={{ color: "#aaa", fontSize: 12 }}>
                       {item.songs} ta musiqa
                     </div>
                   </div>
+
                   <strong style={{ color: "#c4b5fd" }}>
                     {item.plays.toLocaleString()}
                   </strong>
@@ -1019,6 +1300,7 @@ export default function Admin() {
                       }}
                     >
                       <ListMusic color="#a78bfa" size={26} />
+
                       <div style={{ flex: 1 }}>
                         <div style={{ fontWeight: 700 }}>
                           {playlist.name || "Nomsiz playlist"}
@@ -1027,6 +1309,7 @@ export default function Admin() {
                           {count} ta musiqa
                         </div>
                       </div>
+
                       <ChevronRight />
                     </button>
                   );
@@ -1109,6 +1392,7 @@ export default function Admin() {
 
             <div style={{ ...cardStyle, marginBottom: 22 }}>
               <label>Audio fayllar</label>
+
               <input
                 id="bulk-audio"
                 type="file"
@@ -1167,6 +1451,7 @@ export default function Admin() {
                       }}
                     />
                   </div>
+
                   <p style={{ color: "#aaa", fontSize: 12 }}>
                     {bulkProgress}% bajarildi
                   </p>
