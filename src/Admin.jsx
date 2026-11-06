@@ -3,7 +3,9 @@ import React, { useEffect, useState } from "react";
 import {
   ArrowLeft, Music, Trash2, Upload, LogOut,
   RefreshCw, Headphones, ListMusic,
-  ChevronRight, TrendingUp, Play, Check, X, Pencil, Save
+  ChevronRight, TrendingUp, Play, Check, X,
+  Pencil, Save, Users, UserPlus, Activity,
+  Search, CalendarDays
 } from "lucide-react";
 import { supabase } from "./supabase";
 
@@ -16,8 +18,11 @@ function getStoragePath(url) {
 }
 
 function formatDate(value) {
-  if (!value) return "Noma'lum";
-  return new Date(value).toLocaleString("uz-UZ", {
+  if (!value) return "Ma'lumot yo'q";
+  const date = new Date(value);
+  if (isNaN(date.getTime())) return "Ma'lumot yo'q";
+
+  return date.toLocaleString("uz-UZ", {
     day: "2-digit",
     month: "2-digit",
     year: "numeric",
@@ -72,12 +77,17 @@ export default function Admin({ onClose }) {
   const [editTitle, setEditTitle] = useState("");
   const [editArtist, setEditArtist] = useState("");
 
+  // Yangi foydalanuvchilar statistikasi
+  const [userSearch, setUserSearch] = useState("");
+  const [userFilter, setUserFilter] = useState("all");
+
   useEffect(() => {
     checkSession();
   }, []);
 
   async function checkSession() {
     const { data } = await supabase.auth.getSession();
+
     if (!data.session) return;
 
     const { data: admin } = await supabase
@@ -98,7 +108,10 @@ export default function Admin({ onClose }) {
     setLoading(true);
 
     const { data, error: loginError } =
-      await supabase.auth.signInWithPassword({ email, password });
+      await supabase.auth.signInWithPassword({
+        email,
+        password
+      });
 
     if (loginError) {
       setError("Email yoki parol noto'g'ri.");
@@ -142,13 +155,16 @@ export default function Admin({ onClose }) {
       songCountResult,
       playlistCountResult
     ] = await Promise.all([
-      supabase.from("songs").select("*")
+      supabase.from("songs")
+        .select("*")
         .order("created_at", { ascending: false }),
 
-      supabase.from("app_users").select("*")
+      supabase.from("app_users")
+        .select("*")
         .order("created_at", { ascending: false }),
 
-      supabase.from("playlists").select("*")
+      supabase.from("playlists")
+        .select("*")
         .order("created_at", { ascending: false }),
 
       supabase.from("playlist_songs")
@@ -169,6 +185,11 @@ export default function Admin({ onClose }) {
 
     if (usersResult.error) {
       setUsers([]);
+      setError(prev =>
+        prev
+          ? prev + " | Foydalanuvchilar: " + usersResult.error.message
+          : "Foydalanuvchilarni yuklash: " + usersResult.error.message
+      );
     } else {
       setUsers(usersResult.data || []);
     }
@@ -218,6 +239,7 @@ export default function Admin({ onClose }) {
     const confirmed = window.confirm(
       `"${song.title}" musiqasini o'chirmoqchimisiz?`
     );
+
     if (!confirmed) return;
 
     setBusyId(song.id);
@@ -250,7 +272,7 @@ export default function Admin({ onClose }) {
 
       if (storageError) {
         setMessage(
-          "Musiqa bazadan o'chirildi, Storage faylida xatolik: " +
+          "Musiqa bazadan o'chirildi, Storage xatosi: " +
           storageError.message
         );
       } else {
@@ -281,7 +303,8 @@ export default function Admin({ onClose }) {
           ? { ...item, is_published: true }
           : item
       ));
-      setMessage(`"${song.title}" tasdiqlandi va ilovaga qo'shildi!`);
+
+      setMessage(`"${song.title}" tasdiqlandi!`);
     }
 
     setBusyId(null);
@@ -289,10 +312,10 @@ export default function Admin({ onClose }) {
 
   async function rejectSong(song) {
     const confirmed = window.confirm(
-      `"${song.title}" yuborgan musiqani rad etib, o'chirasizmi?`
+      `"${song.title}" musiqasini rad etib, o'chirasizmi?`
     );
-    if (!confirmed) return;
 
+    if (!confirmed) return;
     await deleteSong(song);
   }
 
@@ -334,6 +357,7 @@ export default function Admin({ onClose }) {
             }
           : item
       ));
+
       setEditingId(null);
       setMessage("Musiqa ma'lumotlari saqlandi!");
     }
@@ -438,6 +462,7 @@ export default function Admin({ onClose }) {
 
     for (let i = 0; i < totalFiles; i++) {
       const file = audioFiles[i];
+
       const audioPath =
         "audio/" + Date.now() + "_" + i + "_" +
         safeName(file.name.replace(/\.[^/.]+$/, ""));
@@ -506,9 +531,53 @@ export default function Admin({ onClose }) {
     }
 
     if (success < totalFiles) {
-      setError("Ayrim musiqalar yuklanmadi. Supabase sozlamalarini tekshiring.");
+      setError(
+        "Ayrim musiqalar yuklanmadi. Supabase sozlamalarini tekshiring."
+      );
     }
   }
+
+  // STATISTIKA HISOBLASH
+
+  const now = new Date();
+
+  const todayStart = new Date(
+    now.getFullYear(),
+    now.getMonth(),
+    now.getDate()
+  );
+
+  const weekStart = new Date(
+    now.getTime() - 7 * 24 * 60 * 60 * 1000
+  );
+
+  const monthStart = new Date(
+    now.getFullYear(),
+    now.getMonth(),
+    1
+  );
+
+  const totalUsers = users.length;
+
+  const todayUsers = users.filter(user =>
+    user.created_at &&
+    new Date(user.created_at) >= todayStart
+  ).length;
+
+  const monthUsers = users.filter(user =>
+    user.created_at &&
+    new Date(user.created_at) >= monthStart
+  ).length;
+
+  const activeToday = users.filter(user =>
+    user.last_seen &&
+    new Date(user.last_seen) >= todayStart
+  ).length;
+
+  const activeWeek = users.filter(user =>
+    user.last_seen &&
+    new Date(user.last_seen) >= weekStart
+  ).length;
 
   const pendingSongs = songs.filter(
     song => song.is_published === false && song.submitted_by
@@ -524,7 +593,9 @@ export default function Admin({ onClose }) {
   );
 
   const topSongs = [...publishedSongs]
-    .sort((a, b) => Number(b.play_count || 0) - Number(a.play_count || 0))
+    .sort((a, b) =>
+      Number(b.play_count || 0) - Number(a.play_count || 0)
+    )
     .slice(0, 10);
 
   const artistStats = Object.values(
@@ -541,7 +612,55 @@ export default function Admin({ onClose }) {
 
       return result;
     }, {})
-  ).sort((a, b) => b.plays - a.plays).slice(0, 10);
+  )
+    .sort((a, b) => b.plays - a.plays)
+    .slice(0, 10);
+
+  const recentUsers = [...users]
+    .sort((a, b) =>
+      new Date(b.created_at || 0) -
+      new Date(a.created_at || 0)
+    )
+    .slice(0, 10);
+
+  const filteredUsers = [...users]
+    .filter(user => {
+      const search = userSearch.trim().toLowerCase();
+
+      const matchesSearch =
+        !search ||
+        String(user.id || "").toLowerCase().includes(search) ||
+        String(user.username || "").toLowerCase().includes(search) ||
+        String(user.display_name || "").toLowerCase().includes(search);
+
+      const lastSeen = user.last_seen
+        ? new Date(user.last_seen)
+        : null;
+
+      let matchesFilter = true;
+
+      if (userFilter === "today") {
+        matchesFilter = lastSeen && lastSeen >= todayStart;
+      } else if (userFilter === "week") {
+        matchesFilter = lastSeen && lastSeen >= weekStart;
+      } else if (userFilter === "new") {
+        matchesFilter =
+          user.created_at &&
+          new Date(user.created_at) >= todayStart;
+      }
+
+      return matchesSearch && matchesFilter;
+    })
+    .sort((a, b) =>
+      new Date(b.created_at || 0) -
+      new Date(a.created_at || 0)
+    );
+
+  const userMap = {};
+
+  users.forEach(user => {
+    userMap[user.id] = user;
+  });
 
   const card = {
     background: "#191724",
@@ -585,7 +704,7 @@ export default function Admin({ onClose }) {
     cursor: "pointer"
   };
 
-  const sectionButton = (id) => ({
+  const sectionButton = id => ({
     flex: 1,
     minWidth: 0,
     border: activeSection === id
@@ -595,14 +714,9 @@ export default function Admin({ onClose }) {
     color: "white",
     padding: "11px 5px",
     borderRadius: 10,
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: 600,
     cursor: "pointer"
-  });
-
-  const userMap = {};
-  users.forEach(user => {
-    userMap[user.id] = user;
   });
 
   function renderSong(song, showSubmitter = false) {
@@ -685,15 +799,20 @@ export default function Admin({ onClose }) {
             background: "#100e18",
             borderRadius: 9
           }}>
-            <small style={{ color: "#a78bfa" }}>Yuborgan foydalanuvchi</small>
+            <small style={{ color: "#a78bfa" }}>
+              Yuborgan foydalanuvchi
+            </small>
+
             <p style={{ margin: "5px 0", fontWeight: 700 }}>
               {owner?.display_name || "Noma'lum foydalanuvchi"}
             </p>
+
             {owner?.username && (
               <small style={{ color: "#aaa" }}>
                 @{owner.username}
               </small>
             )}
+
             <small style={{
               display: "block",
               color: "#777",
@@ -703,6 +822,7 @@ export default function Admin({ onClose }) {
             }}>
               ID: {song.submitted_by}
             </small>
+
             <small style={{
               display: "block",
               color: "#777",
@@ -718,7 +838,11 @@ export default function Admin({ onClose }) {
             controls
             preload="none"
             src={song.audio_url}
-            style={{ width: "100%", height: 38, marginTop: 10 }}
+            style={{
+              width: "100%",
+              height: 38,
+              marginTop: 10
+            }}
           />
         )}
 
@@ -743,6 +867,7 @@ export default function Admin({ onClose }) {
               >
                 <Save size={15} /> Saqlash
               </button>
+
               <button
                 onClick={() => setEditingId(null)}
                 style={smallButton}
@@ -832,6 +957,9 @@ export default function Admin({ onClose }) {
         margin: "0 auto",
         paddingBottom: 50
       }}>
+
+        {/* HEADER */}
+
         <div style={{
           display: "flex",
           alignItems: "center",
@@ -842,7 +970,9 @@ export default function Admin({ onClose }) {
             <ArrowLeft size={20} />
           </button>
 
-          <h2 style={{ margin: 0, fontSize: 20 }}>Espofiy Admin</h2>
+          <h2 style={{ margin: 0, fontSize: 20 }}>
+            Espofiy Admin
+          </h2>
 
           {session && (
             <button onClick={logout} style={smallButton}>
@@ -873,7 +1003,9 @@ export default function Admin({ onClose }) {
               required
             />
 
-            {error && <p style={{ color: "#ff7777" }}>{error}</p>}
+            {error && (
+              <p style={{ color: "#ff7777" }}>{error}</p>
+            )}
 
             <button style={button} disabled={loading}>
               {loading ? "Kutilmoqda..." : "Kirish"}
@@ -881,8 +1013,11 @@ export default function Admin({ onClose }) {
           </form>
         ) : (
           <>
+            {/* NAVIGATION */}
+
             <div style={{
-              display: "flex",
+              display: "grid",
+              gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
               gap: 7,
               marginBottom: 18
             }}>
@@ -890,7 +1025,20 @@ export default function Admin({ onClose }) {
                 style={sectionButton("dashboard")}
                 onClick={() => setActiveSection("dashboard")}
               >
-                <Headphones size={15} /> Boshqaruv
+                <Headphones size={15} />
+                <br />Boshqaruv
+              </button>
+
+              <button
+                style={sectionButton("users")}
+                onClick={() => {
+                  setActiveSection("users");
+                  setUserSearch("");
+                  setUserFilter("all");
+                }}
+              >
+                <Users size={15} />
+                <br />Users ({totalUsers})
               </button>
 
               <button
@@ -900,35 +1048,54 @@ export default function Admin({ onClose }) {
                   setSelectedPlaylist(null);
                 }}
               >
-                <ListMusic size={15} /> Playlistlar
+                <ListMusic size={15} />
+                <br />Playlistlar
               </button>
 
               <button
                 style={sectionButton("songs")}
                 onClick={() => setActiveSection("songs")}
               >
-                <Music size={15} /> Musiqa
+                <Music size={15} />
+                <br />Musiqa
               </button>
 
               <button
                 style={sectionButton("pending")}
                 onClick={() => setActiveSection("pending")}
               >
-                <span style={{ color: "#fbbf24" }}>
-                  Tekshiruv ({pendingSongs.length})
-                </span>
+                <Activity size={15} />
+                <br />Tekshiruv ({pendingSongs.length})
+              </button>
+
+              <button
+                style={sectionButton("dashboard")}
+                onClick={loadData}
+              >
+                <RefreshCw size={15} />
+                <br />Yangilash
               </button>
             </div>
 
+            {/* DASHBOARD */}
+
             {activeSection === "dashboard" && (
               <>
-                <h3 style={{ marginTop: 0 }}>Musiqa statistikasi</h3>
+                <h3 style={{ marginTop: 0 }}>
+                  Umumiy statistika
+                </h3>
 
                 <div style={{
                   display: "grid",
                   gridTemplateColumns: "1fr 1fr",
                   gap: 10
                 }}>
+                  <div style={card}>
+                    <Users color="#a78bfa" />
+                    <h2>{totalUsers.toLocaleString("uz-UZ")}</h2>
+                    <small>Foydalanuvchilar</small>
+                  </div>
+
                   <div style={card}>
                     <Headphones color="#a78bfa" />
                     <h2>{totalPlays.toLocaleString("uz-UZ")}</h2>
@@ -944,19 +1111,90 @@ export default function Admin({ onClose }) {
                   <div style={card}>
                     <ListMusic color="#a78bfa" />
                     <h2>{playlistCount}</h2>
-                    <small>Jami playlistlar</small>
-                  </div>
-
-                  <div style={card}>
-                    <TrendingUp color="#a78bfa" />
-                    <h2>{artistStats.length}</h2>
-                    <small>Ijrochilar</small>
+                    <small>Playlistlar</small>
                   </div>
                 </div>
 
+                {/* USER STATS */}
+
                 <div style={card}>
                   <h3 style={{ marginTop: 0 }}>
-                    <Play size={17} style={{ verticalAlign: "middle" }} /> TOP 10 qo'shiqlar
+                    <Users
+                      size={18}
+                      style={{ verticalAlign: "middle" }}
+                    /> Foydalanuvchilar statistikasi
+                  </h3>
+
+                  <div style={{
+                    display: "grid",
+                    gridTemplateColumns: "1fr 1fr",
+                    gap: 10
+                  }}>
+                    {[
+                      {
+                        title: "Jami foydalanuvchilar",
+                        value: totalUsers,
+                        icon: <Users color="#a78bfa" />
+                      },
+                      {
+                        title: "Bugun qo'shilganlar",
+                        value: todayUsers,
+                        icon: <UserPlus color="#34d399" />
+                      },
+                      {
+                        title: "Bugun faol",
+                        value: activeToday,
+                        icon: <Activity color="#38bdf8" />
+                      },
+                      {
+                        title: "7 kunda faol",
+                        value: activeWeek,
+                        icon: <TrendingUp color="#fbbf24" />
+                      },
+                      {
+                        title: "Shu oy qo'shilgan",
+                        value: monthUsers,
+                        icon: <CalendarDays color="#c084fc" />
+                      }
+                    ].map(item => (
+                      <div key={item.title} style={{
+                        background: "#100e18",
+                        border: "1px solid #302a40",
+                        borderRadius: 12,
+                        padding: 13
+                      }}>
+                        {item.icon}
+
+                        <h2 style={{
+                          margin: "8px 0",
+                          color: "#c4a8ff"
+                        }}>
+                          {item.value.toLocaleString("uz-UZ")}
+                        </h2>
+
+                        <small style={{ color: "#aaa" }}>
+                          {item.title}
+                        </small>
+                      </div>
+                    ))}
+                  </div>
+
+                  <button
+                    onClick={() => setActiveSection("users")}
+                    style={{ ...button, marginTop: 14 }}
+                  >
+                    Barcha foydalanuvchilarni ko'rish
+                  </button>
+                </div>
+
+                {/* TOP SONGS */}
+
+                <div style={card}>
+                  <h3 style={{ marginTop: 0 }}>
+                    <Play
+                      size={17}
+                      style={{ verticalAlign: "middle" }}
+                    /> TOP 10 qo'shiqlar
                   </h3>
 
                   {topSongs.map((song, index) => (
@@ -997,7 +1235,10 @@ export default function Admin({ onClose }) {
                         }}>
                           {song.title}
                         </b>
-                        <small style={{ color: "#aaa" }}>{song.artist}</small>
+
+                        <small style={{ color: "#aaa" }}>
+                          {song.artist}
+                        </small>
                       </div>
 
                       <small style={{
@@ -1010,13 +1251,20 @@ export default function Admin({ onClose }) {
                   ))}
 
                   {topSongs.length === 0 && (
-                    <p style={{ color: "#aaa" }}>Hozircha musiqa yo'q.</p>
+                    <p style={{ color: "#aaa" }}>
+                      Hozircha musiqa yo'q.
+                    </p>
                   )}
                 </div>
 
+                {/* TOP ARTISTS */}
+
                 <div style={card}>
                   <h3 style={{ marginTop: 0 }}>
-                    <TrendingUp size={17} style={{ verticalAlign: "middle" }} /> Eng mashhur ijrochilar
+                    <TrendingUp
+                      size={17}
+                      style={{ verticalAlign: "middle" }}
+                    /> Eng mashhur ijrochilar
                   </h3>
 
                   {artistStats.map((item, index) => (
@@ -1027,7 +1275,10 @@ export default function Admin({ onClose }) {
                       padding: "11px 0",
                       borderBottom: "1px solid #302a40"
                     }}>
-                      <b style={{ color: "#a78bfa", width: 22 }}>
+                      <b style={{
+                        color: "#a78bfa",
+                        width: 22
+                      }}>
                         {index + 1}.
                       </b>
 
@@ -1049,11 +1300,332 @@ export default function Admin({ onClose }) {
                   ))}
 
                   {artistStats.length === 0 && (
-                    <p style={{ color: "#aaa" }}>Hozircha ijrochilar yo'q.</p>
+                    <p style={{ color: "#aaa" }}>
+                      Hozircha ijrochilar yo'q.
+                    </p>
                   )}
                 </div>
               </>
             )}
+
+            {/* USERS SECTION */}
+
+            {activeSection === "users" && (
+              <>
+                <div style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  marginBottom: 14
+                }}>
+                  <h3 style={{ margin: 0 }}>
+                    <Users
+                      size={19}
+                      style={{ verticalAlign: "middle" }}
+                    /> Foydalanuvchilar
+                  </h3>
+
+                  <button
+                    onClick={loadData}
+                    disabled={loading}
+                    style={smallButton}
+                  >
+                    <RefreshCw size={17} />
+                  </button>
+                </div>
+
+                {/* USER CARDS */}
+
+                <div style={{
+                  display: "grid",
+                  gridTemplateColumns: "1fr 1fr",
+                  gap: 10
+                }}>
+                  {[
+                    {
+                      title: "Jami",
+                      value: totalUsers,
+                      color: "#a78bfa",
+                      icon: <Users />
+                    },
+                    {
+                      title: "Bugun yangi",
+                      value: todayUsers,
+                      color: "#34d399",
+                      icon: <UserPlus />
+                    },
+                    {
+                      title: "Bugun faol",
+                      value: activeToday,
+                      color: "#38bdf8",
+                      icon: <Activity />
+                    },
+                    {
+                      title: "Haftalik faol",
+                      value: activeWeek,
+                      color: "#fbbf24",
+                      icon: <TrendingUp />
+                    }
+                  ].map(item => (
+                    <div key={item.title} style={{
+                      ...card,
+                      marginBottom: 0
+                    }}>
+                      <div style={{ color: item.color }}>
+                        {item.icon}
+                      </div>
+
+                      <h2 style={{
+                        color: item.color,
+                        margin: "8px 0"
+                      }}>
+                        {item.value.toLocaleString("uz-UZ")}
+                      </h2>
+
+                      <small style={{ color: "#aaa" }}>
+                        {item.title}
+                      </small>
+                    </div>
+                  ))}
+                </div>
+
+                {/* SEARCH */}
+
+                <div style={{
+                  ...card,
+                  marginTop: 14
+                }}>
+                  <h3 style={{ marginTop: 0 }}>
+                    <Search
+                      size={17}
+                      style={{ verticalAlign: "middle" }}
+                    /> Qidirish
+                  </h3>
+
+                  <input
+                    style={input}
+                    placeholder="Ism, username yoki Telegram ID..."
+                    value={userSearch}
+                    onChange={e => setUserSearch(e.target.value)}
+                  />
+
+                  <div style={{
+                    display: "grid",
+                    gridTemplateColumns: "1fr 1fr",
+                    gap: 8
+                  }}>
+                    {[
+                      ["all", "Hammasi"],
+                      ["today", "Bugun faol"],
+                      ["week", "7 kun faol"],
+                      ["new", "Bugun yangi"]
+                    ].map(([value, label]) => (
+                      <button
+                        key={value}
+                        onClick={() => setUserFilter(value)}
+                        style={{
+                          padding: 10,
+                          borderRadius: 9,
+                          border: userFilter === value
+                            ? "1px solid #a78bfa"
+                            : "1px solid #393247",
+                          background: userFilter === value
+                            ? "#302344"
+                            : "#100e18",
+                          color: "white",
+                          cursor: "pointer"
+                        }}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+
+                  <p style={{
+                    color: "#aaa",
+                    fontSize: 12,
+                    marginBottom: 0
+                  }}>
+                    Topildi: {filteredUsers.length} / {totalUsers}
+                  </p>
+                </div>
+
+                {/* RECENT USERS */}
+
+                <div style={card}>
+                  <h3 style={{ marginTop: 0 }}>
+                    <UserPlus
+                      size={17}
+                      style={{ verticalAlign: "middle" }}
+                    /> Oxirgi qo'shilganlar
+                  </h3>
+
+                  {recentUsers.map(user => (
+                    <div key={user.id} style={{
+                      background: "#100e18",
+                      border: "1px solid #302a40",
+                      borderRadius: 11,
+                      padding: 12,
+                      marginBottom: 9
+                    }}>
+                      <div style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 10
+                      }}>
+                        <div style={{
+                          width: 42,
+                          height: 42,
+                          borderRadius: "50%",
+                          background: "#302344",
+                          display: "grid",
+                          placeItems: "center",
+                          flexShrink: 0
+                        }}>
+                          <Users size={20} color="#c4a8ff" />
+                        </div>
+
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <b>{user.display_name || "Noma'lum"}</b>
+
+                          <small style={{
+                            display: "block",
+                            color: "#a78bfa",
+                            marginTop: 3
+                          }}>
+                            {user.username
+                              ? "@" + user.username
+                              : "Username yo'q"}
+                          </small>
+                        </div>
+
+                        <span style={{
+                          color: "#34d399",
+                          fontSize: 11
+                        }}>
+                          Yangi
+                        </span>
+                      </div>
+
+                      <small style={{
+                        display: "block",
+                        color: "#888",
+                        marginTop: 10,
+                        wordBreak: "break-all"
+                      }}>
+                        Telegram ID: {user.id}
+                      </small>
+
+                      <small style={{
+                        display: "block",
+                        color: "#888",
+                        marginTop: 5
+                      }}>
+                        Ro'yxatdan o'tgan: {formatDate(user.created_at)}
+                      </small>
+
+                      <small style={{
+                        display: "block",
+                        color: "#34d399",
+                        marginTop: 5
+                      }}>
+                        Oxirgi kirish: {formatDate(user.last_seen)}
+                      </small>
+                    </div>
+                  ))}
+
+                  {recentUsers.length === 0 && (
+                    <p style={{ color: "#aaa" }}>
+                      Foydalanuvchilar topilmadi.
+                    </p>
+                  )}
+                </div>
+
+                {/* ALL USERS */}
+
+                <div style={card}>
+                  <h3 style={{ marginTop: 0 }}>
+                    Barcha foydalanuvchilar
+                  </h3>
+
+                  {filteredUsers.map(user => (
+                    <div key={user.id} style={{
+                      padding: 13,
+                      borderBottom: "1px solid #302a40"
+                    }}>
+                      <div style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 10
+                      }}>
+                        <div style={{
+                          width: 38,
+                          height: 38,
+                          borderRadius: "50%",
+                          background: "#302344",
+                          display: "grid",
+                          placeItems: "center"
+                        }}>
+                          <Users size={18} />
+                        </div>
+
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <b>
+                            {user.display_name || "Noma'lum foydalanuvchi"}
+                          </b>
+
+                          <small style={{
+                            display: "block",
+                            color: "#a78bfa",
+                            marginTop: 3
+                          }}>
+                            {user.username
+                              ? "@" + user.username
+                              : "Username mavjud emas"}
+                          </small>
+                        </div>
+                      </div>
+
+                      <small style={{
+                        display: "block",
+                        color: "#888",
+                        marginTop: 9,
+                        wordBreak: "break-all"
+                      }}>
+                        Telegram ID: {user.id}
+                      </small>
+
+                      <small style={{
+                        display: "block",
+                        color: "#888",
+                        marginTop: 5
+                      }}>
+                        Qo'shilgan: {formatDate(user.created_at)}
+                      </small>
+
+                      <small style={{
+                        display: "block",
+                        color: "#34d399",
+                        marginTop: 5
+                      }}>
+                        Oxirgi kirish: {formatDate(user.last_seen)}
+                      </small>
+                    </div>
+                  ))}
+
+                  {filteredUsers.length === 0 && (
+                    <p style={{
+                      color: "#aaa",
+                      textAlign: "center"
+                    }}>
+                      Foydalanuvchilar topilmadi.
+                    </p>
+                  )}
+                </div>
+              </>
+            )}
+
+            {/* PENDING SONGS */}
 
             {activeSection === "pending" && (
               <>
@@ -1063,7 +1635,10 @@ export default function Admin({ onClose }) {
                   justifyContent: "space-between",
                   marginBottom: 14
                 }}>
-                  <h3 style={{ margin: 0 }}>Yangi yuborilgan musiqalar</h3>
+                  <h3 style={{ margin: 0 }}>
+                    Yangi yuborilgan musiqalar
+                  </h3>
+
                   <button onClick={loadData} style={smallButton}>
                     <RefreshCw size={17} />
                   </button>
@@ -1073,9 +1648,13 @@ export default function Admin({ onClose }) {
                   ...card,
                   borderColor: "#6b5124"
                 }}>
-                  <p style={{ margin: 0, color: "#fbbf24" }}>
+                  <p style={{
+                    margin: 0,
+                    color: "#fbbf24"
+                  }}>
                     Tekshiruvda: {pendingSongs.length} ta musiqa
                   </p>
+
                   <small style={{ color: "#aaa" }}>
                     Musiqani tasdiqlasangiz, u barcha foydalanuvchilarga ko'rinadi.
                   </small>
@@ -1085,13 +1664,18 @@ export default function Admin({ onClose }) {
                   {pendingSongs.map(song => renderSong(song, true))}
 
                   {pendingSongs.length === 0 && (
-                    <p style={{ color: "#aaa", textAlign: "center" }}>
+                    <p style={{
+                      color: "#aaa",
+                      textAlign: "center"
+                    }}>
                       Hozircha tekshiruvda musiqa yo'q.
                     </p>
                   )}
                 </div>
               </>
             )}
+
+            {/* PLAYLISTS */}
 
             {activeSection === "playlists" && (
               <>
@@ -1109,8 +1693,12 @@ export default function Admin({ onClose }) {
                       >
                         <ArrowLeft size={18} />
                       </button>
+
                       <div>
-                        <h3 style={{ margin: 0 }}>{selectedPlaylist.name}</h3>
+                        <h3 style={{ margin: 0 }}>
+                          {selectedPlaylist.name}
+                        </h3>
+
                         <small style={{ color: "#aaa" }}>
                           {selectedPlaylistSongs.length} ta musiqa
                         </small>
@@ -1118,10 +1706,15 @@ export default function Admin({ onClose }) {
                     </div>
 
                     <div style={card}>
-                      <p style={{ color: "#aaa" }}>Playlist egasi:</p>
+                      <p style={{ color: "#aaa" }}>
+                        Playlist egasi:
+                      </p>
+
                       <b>
-                        {userMap[selectedPlaylist.user_id]?.display_name || "Noma'lum foydalanuvchi"}
+                        {userMap[selectedPlaylist.user_id]?.display_name ||
+                          "Noma'lum foydalanuvchi"}
                       </b>
+
                       <p style={{
                         color: "#aaa",
                         fontSize: 12,
@@ -1129,6 +1722,7 @@ export default function Admin({ onClose }) {
                       }}>
                         ID: {selectedPlaylist.user_id || "Mavjud emas"}
                       </p>
+
                       <p style={{ color: "#aaa" }}>
                         Yaratilgan: {formatDate(selectedPlaylist.created_at)}
                       </p>
@@ -1160,6 +1754,7 @@ export default function Admin({ onClose }) {
 
                           <div style={{ flex: 1, minWidth: 0 }}>
                             <b>{song.title}</b>
+
                             <small style={{
                               display: "block",
                               color: "#aaa"
@@ -1184,6 +1779,7 @@ export default function Admin({ onClose }) {
                     <div style={card}>
                       {playlists.map(playlist => {
                         const owner = userMap[playlist.user_id];
+
                         const count = playlistRelations.filter(
                           r => r.playlist_id === playlist.id
                         ).length;
@@ -1202,7 +1798,8 @@ export default function Admin({ onClose }) {
                               color: "white",
                               border: 0,
                               borderBottom: "1px solid #302a40",
-                              textAlign: "left"
+                              textAlign: "left",
+                              cursor: "pointer"
                             }}
                           >
                             <div style={{
@@ -1228,8 +1825,12 @@ export default function Admin({ onClose }) {
                               ) : <ListMusic />}
                             </div>
 
-                            <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{
+                              flex: 1,
+                              minWidth: 0
+                            }}>
                               <b>{playlist.name}</b>
+
                               <small style={{
                                 display: "block",
                                 color: "#aaa",
@@ -1237,10 +1838,12 @@ export default function Admin({ onClose }) {
                               }}>
                                 {owner?.display_name || "Noma'lum egasi"}
                               </small>
+
                               <small style={{ color: "#a78bfa" }}>
                                 {count} ta musiqa
                               </small>
                             </div>
+
                             <ChevronRight size={19} />
                           </button>
                         );
@@ -1257,21 +1860,31 @@ export default function Admin({ onClose }) {
               </>
             )}
 
+            {/* SONGS */}
+
             {activeSection === "songs" && (
               <>
                 <form onSubmit={uploadSingle} style={card}>
-                  <h3><Music size={18} /> Bittalab musiqa qo'shish</h3>
+                  <h3>
+                    <Music size={18} /> Bittalab musiqa qo'shish
+                  </h3>
 
                   <label>Musiqa fayli</label>
                   <input
                     style={input}
                     type="file"
-                    onChange={e => setSingleAudio(e.target.files?.[0] || null)}
+                    accept="audio/*"
+                    onChange={e =>
+                      setSingleAudio(e.target.files?.[0] || null)
+                    }
                     required
                   />
 
                   {singleAudio && (
-                    <p style={{ color: "#a78bfa", fontSize: 13 }}>
+                    <p style={{
+                      color: "#a78bfa",
+                      fontSize: 13
+                    }}>
                       Tanlandi: {singleAudio.name}
                     </p>
                   )}
@@ -1313,27 +1926,42 @@ export default function Admin({ onClose }) {
                     style={input}
                     type="file"
                     accept="image/*"
-                    onChange={e => setSingleCover(e.target.files?.[0] || null)}
+                    onChange={e =>
+                      setSingleCover(e.target.files?.[0] || null)
+                    }
                   />
 
-                  <button style={button} disabled={singleUploading}>
-                    {singleUploading ? "Yuklanmoqda..." : "Bitta musiqani qo'shish"}
+                  <button
+                    style={button}
+                    disabled={singleUploading}
+                  >
+                    {singleUploading
+                      ? "Yuklanmoqda..."
+                      : "Bitta musiqani qo'shish"}
                   </button>
                 </form>
 
                 <form onSubmit={uploadMany} style={card}>
-                  <h3><Upload size={18} /> Bir nechta musiqa yuklash</h3>
+                  <h3>
+                    <Upload size={18} /> Bir nechta musiqa yuklash
+                  </h3>
 
                   <label>Musiqalarni tanlang</label>
                   <input
                     style={input}
                     type="file"
+                    accept="audio/*"
                     multiple
-                    onChange={e => setAudioFiles(Array.from(e.target.files || []))}
+                    onChange={e =>
+                      setAudioFiles(Array.from(e.target.files || []))
+                    }
                   />
 
                   {audioFiles.length > 0 && (
-                    <p style={{ color: "#a78bfa", fontSize: 13 }}>
+                    <p style={{
+                      color: "#a78bfa",
+                      fontSize: 13
+                    }}>
                       {audioFiles.length} ta musiqa tanlandi
                     </p>
                   )}
@@ -1365,7 +1993,9 @@ export default function Admin({ onClose }) {
                     style={input}
                     type="file"
                     accept="image/*"
-                    onChange={e => setCoverFile(e.target.files?.[0] || null)}
+                    onChange={e =>
+                      setCoverFile(e.target.files?.[0] || null)
+                    }
                   />
 
                   {uploading && (
@@ -1374,22 +2004,35 @@ export default function Admin({ onClose }) {
                     </p>
                   )}
 
-                  <button style={button} disabled={uploading}>
-                    {uploading ? "Yuklanmoqda..." : "Musiqalarni yuklash"}
+                  <button
+                    style={button}
+                    disabled={uploading}
+                  >
+                    {uploading
+                      ? "Yuklanmoqda..."
+                      : "Musiqalarni yuklash"}
                   </button>
                 </form>
 
                 <div style={card}>
-                  <h3>Barcha musiqalar ({publishedSongs.length})</h3>
+                  <h3>
+                    Barcha musiqalar ({publishedSongs.length})
+                  </h3>
 
-                  {publishedSongs.map(song => renderSong(song, false))}
+                  {publishedSongs.map(song =>
+                    renderSong(song, false)
+                  )}
 
                   {publishedSongs.length === 0 && (
-                    <p style={{ color: "#aaa" }}>Hozircha musiqa yo'q.</p>
+                    <p style={{ color: "#aaa" }}>
+                      Hozircha musiqa yo'q.
+                    </p>
                   )}
                 </div>
               </>
             )}
+
+            {/* REFRESH */}
 
             <button
               onClick={loadData}
@@ -1402,9 +2045,15 @@ export default function Admin({ onClose }) {
             >
               <RefreshCw
                 size={16}
-                style={{ verticalAlign: "middle", marginRight: 7 }}
+                style={{
+                  verticalAlign: "middle",
+                  marginRight: 7
+                }}
               />
-              {loading ? "Yangilanmoqda..." : "Statistikani yangilash"}
+
+              {loading
+                ? "Yangilanmoqda..."
+                : "Statistikani yangilash"}
             </button>
           </>
         )}
