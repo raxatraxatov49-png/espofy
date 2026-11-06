@@ -1,4 +1,3 @@
-
 import React, { useEffect, useRef, useState } from "react";
 import {
   Home, Search, Library, Play, Pause,
@@ -146,6 +145,56 @@ function safeFileName(name) {
     .normalize("NFKD")
     .replace(/[^a-zA-Z0-9._-]/g, "_")
     .slice(-100);
+}
+
+/* Barcha musiqalar uchun yagona muqova */
+function SongCover() {
+  return (
+    <div className="universal-cover" aria-label="Espofiy music cover">
+      <div className="cover-glow" />
+      <svg
+        viewBox="0 0 100 100"
+        className="cover-art"
+        xmlns="http://www.w3.org/2000/svg"
+        aria-hidden="true"
+      >
+        <circle
+          cx="50"
+          cy="50"
+          r="39"
+          fill="none"
+          stroke="rgba(190,140,255,0.13)"
+          strokeWidth="1"
+        />
+        <circle
+          cx="50"
+          cy="50"
+          r="31"
+          fill="none"
+          stroke="rgba(190,140,255,0.10)"
+          strokeWidth="1"
+        />
+        <path
+          d="M12 52 H29 L37 38 L47 66 L57 28 L67 56 L73 45 L80 52 H89"
+          fill="none"
+          stroke="#d8b4fe"
+          strokeWidth="3"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+        <path
+          d="M12 52 H29 L37 38 L47 66 L57 28 L67 56 L73 45 L80 52 H89"
+          fill="none"
+          stroke="#a855f7"
+          strokeWidth="7"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          opacity="0.18"
+        />
+      </svg>
+      <span className="cover-brand">ESPOFIY</span>
+    </div>
+  );
 }
 
 export default function App() {
@@ -760,22 +809,21 @@ export default function App() {
 
             <h2 className="section-title">{t.newSongs}</h2>
 
-            <div className="songs">
+            <div className="songs songs-grid">
               {songs.map(song => (
-                <div className="song" key={song.id}>
-                  <div className="cover">
-                    {song.cover_url
-                      ? <img src={song.cover_url} alt="" />
-                      : <Music2 />}
-                  </div>
+                <div className="song song-grid-card" key={song.id}>
+                  <SongCover />
 
                   <div className="song-info">
                     <b>{song.title}</b>
                     <span>{song.artist}</span>
                   </div>
 
-                  <button className="play-small"
-                    onClick={() => playSong(song)}>
+                  <button
+                    className="play-small"
+                    onClick={() => playSong(song)}
+                    aria-label={`Play ${song.title}`}
+                  >
                     {currentSong?.id === song.id && playing
                       ? <Pause size={18} />
                       : <Play size={18} fill="white" />}
@@ -803,11 +851,7 @@ export default function App() {
             <div className="songs">
               {filteredSongs.map(song => (
                 <div className="song" key={song.id}>
-                  <div className="cover">
-                    {song.cover_url
-                      ? <img src={song.cover_url} alt="" />
-                      : <Music2 />}
-                  </div>
+                  <SongCover />
 
                   <div className="song-info">
                     <b>{song.title}</b>
@@ -868,7 +912,6 @@ export default function App() {
                 <input
                   id="submission-audio"
                   type="file"
-                  accept="audio/*,.mp3,.m4a,.wav,.ogg,.flac,.aac"
                   style={{ display: "none" }}
                   onChange={e => setUploadAudio(e.target.files?.[0] || null)}
                 />
@@ -924,9 +967,7 @@ export default function App() {
             <div className="songs">
               {mySubmissions.map(item => (
                 <div className="song" key={item.id}>
-                  <div className="cover">
-                    <Music2 />
-                  </div>
+                  <SongCover />
 
                   <div className="song-info">
                     <b>{item.title}</b>
@@ -1009,11 +1050,7 @@ export default function App() {
                 <div className="songs">
                   {playlistSongs.map(song => (
                     <div className="song" key={song.id}>
-                      <div className="cover">
-                        {song.cover_url
-                          ? <img src={song.cover_url} alt="" />
-                          : <Music2 />}
-                      </div>
+                      <SongCover />
 
                       <div className="song-info"
                         onClick={() => playSong(song)}>
@@ -1075,7 +1112,7 @@ export default function App() {
                     <div className="song" key={playlist.id}
                       onClick={() => openPlaylist(playlist)}
                       style={{ cursor: "pointer" }}>
-                      <div className="cover">
+                      <div className="cover playlist-row-cover">
                         {playlist.cover_url
                           ? <img src={playlist.cover_url} alt="" />
                           : <ListMusic />}
@@ -1142,12 +1179,10 @@ export default function App() {
         <div className="player">
           <div className="player-song">
             <div className="mini-cover">
-              {currentSong.cover_url
-                ? <img src={currentSong.cover_url} alt="" />
-                : <Music2 />}
+              <SongCover />
             </div>
 
-            <div>
+            <div className="player-song-info">
               <b>{currentSong.title}</b>
               <span>{currentSong.artist}</span>
             </div>
