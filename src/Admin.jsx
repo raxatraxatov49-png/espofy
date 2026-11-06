@@ -3,26 +3,20 @@ import React, { useEffect, useState } from "react";
 import {
   ArrowLeft, Music, Trash2, Upload, LogOut,
   RefreshCw, Headphones, Users, CalendarDays,
-  ListMusic, Eye, X, User, ChevronRight
+  ListMusic, Eye, User, ChevronRight
 } from "lucide-react";
 import { supabase } from "./supabase";
 
 function getStoragePath(url) {
   if (!url) return null;
-
   const marker = "/storage/v1/object/public/music/";
   const index = url.indexOf(marker);
-
   if (index === -1) return null;
-
-  return decodeURIComponent(
-    url.substring(index + marker.length).split("?")[0]
-  );
+  return decodeURIComponent(url.substring(index + marker.length).split("?")[0]);
 }
 
 function formatDate(value) {
   if (!value) return "Noma'lum";
-
   return new Date(value).toLocaleString("uz-UZ", {
     day: "2-digit",
     month: "2-digit",
@@ -30,6 +24,10 @@ function formatDate(value) {
     hour: "2-digit",
     minute: "2-digit"
   });
+}
+
+function safeName(name) {
+  return name.replace(/[^a-zA-Z0-9._-]/g, "_");
 }
 
 export default function Admin({ onClose }) {
@@ -48,15 +46,24 @@ export default function Admin({ onClose }) {
   const [loading, setLoading] = useState(false);
   const [busyId, setBusyId] = useState(null);
   const [uploading, setUploading] = useState(false);
+  const [singleUploading, setSingleUploading] = useState(false);
   const [progress, setProgress] = useState(0);
 
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
 
+  // Bir nechta musiqa yuklash
   const [audioFiles, setAudioFiles] = useState([]);
   const [artist, setArtist] = useState("");
   const [genre, setGenre] = useState("Boshqa");
   const [coverFile, setCoverFile] = useState(null);
+
+  // Bittalab musiqa yuklash
+  const [singleAudio, setSingleAudio] = useState(null);
+  const [singleTitle, setSingleTitle] = useState("");
+  const [singleArtist, setSingleArtist] = useState("");
+  const [singleGenre, setSingleGenre] = useState("Boshqa");
+  const [singleCover, setSingleCover] = useState(null);
 
   const [activeSection, setActiveSection] = useState("dashboard");
 
@@ -71,7 +78,6 @@ export default function Admin({ onClose }) {
 
   async function checkSession() {
     const { data } = await supabase.auth.getSession();
-
     if (!data.session) return;
 
     const { data: admin } = await supabase
@@ -92,13 +98,10 @@ export default function Admin({ onClose }) {
     setLoading(true);
 
     const { data, error: loginError } =
-      await supabase.auth.signInWithPassword({
-        email,
-        password
-      });
+      await supabase.auth.signInWithPassword({ email, password });
 
     if (loginError) {
-      setError("Email yoki parol noto‘g‘ri.");
+      setError("Email yoki parol noto'g'ri.");
       setLoading(false);
       return;
     }
@@ -111,7 +114,7 @@ export default function Admin({ onClose }) {
 
     if (adminError || !admin) {
       await supabase.auth.signOut();
-      setError("Sizda admin huquqi yo‘q.");
+      setError("Sizda admin huquqi yo'q.");
       setLoading(false);
       return;
     }
@@ -176,9 +179,7 @@ export default function Admin({ onClose }) {
 
       const now = new Date();
       const todayStart = new Date(
-        now.getFullYear(),
-        now.getMonth(),
-        now.getDate()
+        now.getFullYear(), now.getMonth(), now.getDate()
       );
 
       setTodayCount(
@@ -216,7 +217,6 @@ export default function Admin({ onClose }) {
     );
 
     const ids = relations.map(item => item.song_id);
-
     if (!ids.length) return;
 
     const { data, error } = await supabase
@@ -225,7 +225,7 @@ export default function Admin({ onClose }) {
       .in("id", ids);
 
     if (error) {
-      setError("Playlist musiqalarini ochib bo‘lmadi: " + error.message);
+      setError("Playlist musiqalarini ochib bo'lmadi: " + error.message);
       return;
     }
 
@@ -234,9 +234,8 @@ export default function Admin({ onClose }) {
 
   async function deleteSong(song) {
     const confirmed = window.confirm(
-      `"${song.title}" musiqasini o‘chirmoqchimisiz?`
+      `"${song.title}" musiqasini o'chirmoqchimisiz?`
     );
-
     if (!confirmed) return;
 
     setBusyId(song.id);
@@ -249,7 +248,7 @@ export default function Admin({ onClose }) {
       .eq("id", song.id);
 
     if (deleteError) {
-      setError("Bazadan o‘chirilmadi: " + deleteError.message);
+      setError("Bazadan o'chirilmadi: " + deleteError.message);
       setBusyId(null);
       return;
     }
@@ -268,17 +267,98 @@ export default function Admin({ onClose }) {
         .remove(paths);
 
       if (storageError) {
-        setMessage("Musiqa bazadan o‘chirildi, lekin Storage faylini o‘chirishda xatolik bor: " + storageError.message);
+        setMessage("Musiqa bazadan o'chirildi, Storage faylida xatolik: " + storageError.message);
       } else {
-        setMessage("Musiqa muvaffaqiyatli o‘chirildi!");
+        setMessage("Musiqa muvaffaqiyatli o'chirildi!");
       }
     } else {
-      setMessage("Musiqa muvaffaqiyatli o‘chirildi!");
+      setMessage("Musiqa muvaffaqiyatli o'chirildi!");
     }
 
     setBusyId(null);
   }
 
+  // Bittalab musiqa yuklash
+  async function uploadSingle(e) {
+    e.preventDefault();
+
+    if (!singleAudio || !singleTitle.trim() || !singleArtist.trim()) {
+      setError("Musiqa fayli, nomi va ijrochisini kiriting.");
+      return;
+    }
+
+    setSingleUploading(true);
+    setError("");
+    setMessage("");
+
+    try {
+      const audioPath =
+        "audio/" + Date.now() + "_" + safeName(singleAudio.name);
+
+      const { error: audioError } = await supabase.storage
+        .from("music")
+        .upload(audioPath, singleAudio, {
+          contentType: singleAudio.type || "audio/mpeg",
+          upsert: false
+        });
+
+      if (audioError) throw audioError;
+
+      const { data: audioData } = supabase.storage
+        .from("music")
+        .getPublicUrl(audioPath);
+
+      let coverUrl = null;
+
+      if (singleCover) {
+        const coverPath =
+          "covers/" + Date.now() + "_" + safeName(singleCover.name);
+
+        const { error: coverError } = await supabase.storage
+          .from("music")
+          .upload(coverPath, singleCover, {
+            contentType: singleCover.type || "image/jpeg",
+            upsert: false
+          });
+
+        if (coverError) throw coverError;
+
+        const { data: coverData } = supabase.storage
+          .from("music")
+          .getPublicUrl(coverPath);
+
+        coverUrl = coverData.publicUrl;
+      }
+
+      const { error: insertError } = await supabase
+        .from("songs")
+        .insert({
+          title: singleTitle.trim(),
+          artist: singleArtist.trim(),
+          genre: singleGenre,
+          audio_url: audioData.publicUrl,
+          cover_url: coverUrl,
+          is_published: true
+        });
+
+      if (insertError) throw insertError;
+
+      setMessage("Musiqa muvaffaqiyatli qo'shildi!");
+      setSingleAudio(null);
+      setSingleTitle("");
+      setSingleArtist("");
+      setSingleGenre("Boshqa");
+      setSingleCover(null);
+
+      await loadData();
+    } catch (err) {
+      setError("Musiqa yuklanmadi: " + err.message);
+    }
+
+    setSingleUploading(false);
+  }
+
+  // Bir nechta musiqa yuklash
   async function uploadMany(e) {
     e.preventDefault();
 
@@ -296,12 +376,9 @@ export default function Admin({ onClose }) {
 
     for (let i = 0; i < audioFiles.length; i++) {
       const file = audioFiles[i];
-      const safeName = file.name
-        .replace(/\.[^/.]+$/, "")
-        .replace(/[^a-zA-Z0-9_-]/g, "_");
-
       const audioPath =
-        "audio/" + Date.now() + "_" + i + "_" + safeName;
+        "audio/" + Date.now() + "_" + i + "_" +
+        safeName(file.name.replace(/\.[^/.]+$/, ""));
 
       try {
         const { error: audioError } = await supabase.storage
@@ -322,7 +399,7 @@ export default function Admin({ onClose }) {
         if (coverFile) {
           const coverPath =
             "covers/" + Date.now() + "_" + i + "_" +
-            coverFile.name.replace(/[^a-zA-Z0-9._-]/g, "_");
+            safeName(coverFile.name);
 
           const { error: coverError } = await supabase.storage
             .from("music")
@@ -349,7 +426,6 @@ export default function Admin({ onClose }) {
           });
 
         if (insertError) throw insertError;
-
         success++;
       } catch (err) {
         console.error(file.name, err);
@@ -417,9 +493,7 @@ export default function Admin({ onClose }) {
   const sectionButton = (id) => ({
     flex: 1,
     minWidth: 0,
-    border: activeSection === id
-      ? "1px solid #a78bfa"
-      : "1px solid #302a40",
+    border: activeSection === id ? "1px solid #a78bfa" : "1px solid #302a40",
     background: activeSection === id ? "#302344" : "#191724",
     color: "white",
     padding: "11px 5px",
@@ -459,9 +533,7 @@ export default function Admin({ onClose }) {
             <ArrowLeft size={20} />
           </button>
 
-          <h2 style={{ margin: 0, fontSize: 20 }}>
-            Espofiy Admin
-          </h2>
+          <h2 style={{ margin: 0, fontSize: 20 }}>Espofiy Admin</h2>
 
           {session && (
             <button onClick={logout} style={smallButton}>
@@ -492,9 +564,7 @@ export default function Admin({ onClose }) {
               required
             />
 
-            {error && (
-              <p style={{ color: "#ff7777" }}>{error}</p>
-            )}
+            {error && <p style={{ color: "#ff7777" }}>{error}</p>}
 
             <button style={button} disabled={loading}>
               {loading ? "Kutilmoqda..." : "Kirish"}
@@ -507,17 +577,11 @@ export default function Admin({ onClose }) {
               gap: 7,
               marginBottom: 18
             }}>
-              <button
-                style={sectionButton("dashboard")}
-                onClick={() => setActiveSection("dashboard")}
-              >
+              <button style={sectionButton("dashboard")} onClick={() => setActiveSection("dashboard")}>
                 <Headphones size={15} /> Boshqaruv
               </button>
 
-              <button
-                style={sectionButton("users")}
-                onClick={() => setActiveSection("users")}
-              >
+              <button style={sectionButton("users")} onClick={() => setActiveSection("users")}>
                 <Users size={15} /> Odamlar
               </button>
 
@@ -531,10 +595,7 @@ export default function Admin({ onClose }) {
                 <ListMusic size={15} /> Playlistlar
               </button>
 
-              <button
-                style={sectionButton("songs")}
-                onClick={() => setActiveSection("songs")}
-              >
+              <button style={sectionButton("songs")} onClick={() => setActiveSection("songs")}>
                 <Music size={15} /> Musiqa
               </button>
             </div>
@@ -550,47 +611,31 @@ export default function Admin({ onClose }) {
                 }}>
                   <div style={card}>
                     <Users color="#a78bfa" />
-                    <h2 style={{ margin: "10px 0 4px" }}>
-                      {userCount}
-                    </h2>
-                    <small style={{ color: "#aaa" }}>
-                      Jami foydalanuvchilar
-                    </small>
+                    <h2>{userCount}</h2>
+                    <small>Jami foydalanuvchilar</small>
                   </div>
 
                   <div style={card}>
                     <CalendarDays color="#a78bfa" />
-                    <h2 style={{ margin: "10px 0 4px" }}>
-                      {todayCount}
-                    </h2>
-                    <small style={{ color: "#aaa" }}>
-                      Bugun qo‘shilganlar
-                    </small>
+                    <h2>{todayCount}</h2>
+                    <small>Bugun qo'shilganlar</small>
                   </div>
 
                   <div style={card}>
                     <ListMusic color="#a78bfa" />
-                    <h2 style={{ margin: "10px 0 4px" }}>
-                      {playlistCount}
-                    </h2>
-                    <small style={{ color: "#aaa" }}>
-                      Jami playlistlar
-                    </small>
+                    <h2>{playlistCount}</h2>
+                    <small>Jami playlistlar</small>
                   </div>
 
                   <div style={card}>
                     <Music color="#a78bfa" />
-                    <h2 style={{ margin: "10px 0 4px" }}>
-                      {songCount}
-                    </h2>
-                    <small style={{ color: "#aaa" }}>
-                      Jami musiqalar
-                    </small>
+                    <h2>{songCount}</h2>
+                    <small>Jami musiqalar</small>
                   </div>
                 </div>
 
                 <div style={card}>
-                  <h3>Oxirgi qo‘shilgan foydalanuvchilar</h3>
+                  <h3>Oxirgi qo'shilgan foydalanuvchilar</h3>
 
                   {users.slice(0, 5).map(user => (
                     <div key={user.id} style={{
@@ -600,47 +645,22 @@ export default function Admin({ onClose }) {
                       padding: "10px 0",
                       borderBottom: "1px solid #302a40"
                     }}>
-                      <div style={{
-                        width: 38,
-                        height: 38,
-                        borderRadius: 50,
-                        background: "#302344",
-                        display: "grid",
-                        placeItems: "center"
-                      }}>
-                        <User size={18} />
-                      </div>
-
+                      <User size={20} />
                       <div style={{ flex: 1, minWidth: 0 }}>
-                        <b style={{ fontSize: 14 }}>
-                          {user.display_name || "Telegram foydalanuvchisi"}
-                        </b>
-                        <small style={{
-                          display: "block",
-                          color: "#aaa"
-                        }}>
-                          {user.username
-                            ? "@" + user.username
-                            : "Username yo‘q"}
+                        <b>{user.display_name || "Telegram foydalanuvchisi"}</b>
+                        <small style={{ display: "block", color: "#aaa" }}>
+                          {user.username ? "@" + user.username : "Username yo'q"}
                         </small>
                       </div>
-
-                      <small style={{ color: "#aaa" }}>
-                        {formatDate(user.created_at)}
-                      </small>
+                      <small style={{ color: "#aaa" }}>{formatDate(user.created_at)}</small>
                     </div>
                   ))}
 
                   {users.length === 0 && (
-                    <p style={{ color: "#aaa" }}>
-                      Hozircha foydalanuvchilar yo‘q.
-                    </p>
+                    <p style={{ color: "#aaa" }}>Hozircha foydalanuvchilar yo'q.</p>
                   )}
 
-                  <button
-                    style={{ ...button, marginTop: 12 }}
-                    onClick={() => setActiveSection("users")}
-                  >
+                  <button style={{ ...button, marginTop: 12 }} onClick={() => setActiveSection("users")}>
                     Barcha foydalanuvchilar
                   </button>
                 </div>
@@ -652,61 +672,30 @@ export default function Admin({ onClose }) {
                 <h3>Foydalanuvchilar ({userCount})</h3>
 
                 <div style={card}>
-                  <h4 style={{ marginTop: 0 }}>
-                    Bugun qo‘shilganlar: {todayCount}
-                  </h4>
+                  <h4>Bugun qo'shilganlar: {todayCount}</h4>
 
                   {users.map(user => {
-                    const userPlaylists = playlists.filter(
-                      p => p.user_id === user.id
-                    );
+                    const userPlaylists = playlists.filter(p => p.user_id === user.id);
 
                     return (
                       <div key={user.id} style={{
                         padding: "13px 0",
                         borderBottom: "1px solid #302a40"
                       }}>
-                        <b>
-                          {user.display_name || "Nomsiz foydalanuvchi"}
-                        </b>
-
-                        <p style={{
-                          color: "#a78bfa",
-                          margin: "5px 0",
-                          fontSize: 13
-                        }}>
-                          {user.username ? "@" + user.username : "Username yo‘q"}
+                        <b>{user.display_name || "Nomsiz foydalanuvchi"}</b>
+                        <p style={{ color: "#a78bfa", margin: "5px 0", fontSize: 13 }}>
+                          {user.username ? "@" + user.username : "Username yo'q"}
                         </p>
-
-                        <small style={{
-                          display: "block",
-                          color: "#aaa",
-                          wordBreak: "break-all"
-                        }}>
+                        <small style={{ display: "block", color: "#aaa", wordBreak: "break-all" }}>
                           ID: {user.id}
                         </small>
-
-                        <small style={{
-                          display: "block",
-                          color: "#aaa",
-                          marginTop: 5
-                        }}>
-                          Qo‘shilgan: {formatDate(user.created_at)}
+                        <small style={{ display: "block", color: "#aaa", marginTop: 5 }}>
+                          Qo'shilgan: {formatDate(user.created_at)}
                         </small>
-
-                        <small style={{
-                          display: "block",
-                          color: "#aaa",
-                          marginTop: 4
-                        }}>
+                        <small style={{ display: "block", color: "#aaa", marginTop: 4 }}>
                           Oxirgi kirish: {formatDate(user.last_seen)}
                         </small>
-
-                        <small style={{
-                          display: "block",
-                          color: "#c4a8ff",
-                          marginTop: 5
-                        }}>
+                        <small style={{ display: "block", color: "#c4a8ff", marginTop: 5 }}>
                           Playlistlari: {userPlaylists.length} ta
                         </small>
 
@@ -717,11 +706,7 @@ export default function Admin({ onClose }) {
                               setActiveSection("playlists");
                               openPlaylist(playlist);
                             }}
-                            style={{
-                              ...smallButton,
-                              marginTop: 8,
-                              marginRight: 6
-                            }}
+                            style={{ ...smallButton, marginTop: 8, marginRight: 6 }}
                           >
                             <Eye size={14} /> {playlist.name}
                           </button>
@@ -730,11 +715,7 @@ export default function Admin({ onClose }) {
                     );
                   })}
 
-                  {users.length === 0 && (
-                    <p style={{ color: "#aaa" }}>
-                      Foydalanuvchilar topilmadi.
-                    </p>
-                  )}
+                  {users.length === 0 && <p style={{ color: "#aaa" }}>Foydalanuvchilar topilmadi.</p>}
                 </div>
               </>
             )}
@@ -743,50 +724,23 @@ export default function Admin({ onClose }) {
               <>
                 {selectedPlaylist ? (
                   <>
-                    <div style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 10,
-                      marginBottom: 15
-                    }}>
-                      <button
-                        onClick={() => setSelectedPlaylist(null)}
-                        style={smallButton}
-                      >
+                    <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 15 }}>
+                      <button onClick={() => setSelectedPlaylist(null)} style={smallButton}>
                         <ArrowLeft size={18} />
                       </button>
-
                       <div>
-                        <h3 style={{ margin: 0 }}>
-                          {selectedPlaylist.name}
-                        </h3>
-                        <small style={{ color: "#aaa" }}>
-                          {selectedPlaylistSongs.length} ta musiqa
-                        </small>
+                        <h3 style={{ margin: 0 }}>{selectedPlaylist.name}</h3>
+                        <small style={{ color: "#aaa" }}>{selectedPlaylistSongs.length} ta musiqa</small>
                       </div>
                     </div>
 
                     <div style={card}>
-                      <p style={{ color: "#aaa" }}>
-                        Playlist egasi:
-                      </p>
-
-                      <b>
-                        {userMap[selectedPlaylist.user_id]?.display_name ||
-                          "Noma'lum foydalanuvchi"}
-                      </b>
-
-                      <p style={{
-                        color: "#aaa",
-                        fontSize: 12,
-                        wordBreak: "break-all"
-                      }}>
+                      <p style={{ color: "#aaa" }}>Playlist egasi:</p>
+                      <b>{userMap[selectedPlaylist.user_id]?.display_name || "Noma'lum foydalanuvchi"}</b>
+                      <p style={{ color: "#aaa", fontSize: 12, wordBreak: "break-all" }}>
                         ID: {selectedPlaylist.user_id || "Mavjud emas"}
                       </p>
-
-                      <p style={{ color: "#aaa" }}>
-                        Yaratilgan: {formatDate(selectedPlaylist.created_at)}
-                      </p>
+                      <p style={{ color: "#aaa" }}>Yaratilgan: {formatDate(selectedPlaylist.created_at)}</p>
                     </div>
 
                     <div style={card}>
@@ -801,54 +755,28 @@ export default function Admin({ onClose }) {
                           borderBottom: "1px solid #302a40"
                         }}>
                           {song.cover_url ? (
-                            <img
-                              src={song.cover_url}
-                              alt=""
-                              style={{
-                                width: 42,
-                                height: 42,
-                                borderRadius: 8,
-                                objectFit: "cover"
-                              }}
-                            />
-                          ) : (
-                            <Music size={22} />
-                          )}
+                            <img src={song.cover_url} alt="" style={{ width: 42, height: 42, borderRadius: 8, objectFit: "cover" }} />
+                          ) : <Music size={22} />}
 
                           <div style={{ flex: 1, minWidth: 0 }}>
-                            <b style={{
-                              display: "block",
-                              overflow: "hidden",
-                              textOverflow: "ellipsis",
-                              whiteSpace: "nowrap"
-                            }}>
-                              {song.title}
-                            </b>
-                            <small style={{ color: "#aaa" }}>
-                              {song.artist}
-                            </small>
+                            <b>{song.title}</b>
+                            <small style={{ display: "block", color: "#aaa" }}>{song.artist}</small>
                           </div>
                         </div>
                       ))}
 
                       {selectedPlaylistSongs.length === 0 && (
-                        <p style={{ color: "#aaa" }}>
-                          Bu playlistda hali musiqa yo‘q.
-                        </p>
+                        <p style={{ color: "#aaa" }}>Bu playlistda hali musiqa yo'q.</p>
                       )}
                     </div>
                   </>
                 ) : (
                   <>
                     <h3>Playlistlar ({playlistCount})</h3>
-
                     <div style={card}>
                       {playlists.map(playlist => {
                         const owner = userMap[playlist.user_id];
-
-                        const count = playlistRelations.filter(
-                          r => r.playlist_id === playlist.id
-                        ).length;
+                        const count = playlistRelations.filter(r => r.playlist_id === playlist.id).length;
 
                         return (
                           <button
@@ -878,53 +806,23 @@ export default function Admin({ onClose }) {
                               flexShrink: 0
                             }}>
                               {playlist.cover_url ? (
-                                <img
-                                  src={playlist.cover_url}
-                                  alt=""
-                                  style={{
-                                    width: "100%",
-                                    height: "100%",
-                                    objectFit: "cover"
-                                  }}
-                                />
-                              ) : (
-                                <ListMusic />
-                              )}
+                                <img src={playlist.cover_url} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                              ) : <ListMusic />}
                             </div>
 
                             <div style={{ flex: 1, minWidth: 0 }}>
-                              <b style={{
-                                display: "block",
-                                overflow: "hidden",
-                                textOverflow: "ellipsis",
-                                whiteSpace: "nowrap"
-                              }}>
-                                {playlist.name}
-                              </b>
-
-                              <small style={{
-                                display: "block",
-                                color: "#aaa",
-                                marginTop: 4
-                              }}>
+                              <b>{playlist.name}</b>
+                              <small style={{ display: "block", color: "#aaa", marginTop: 4 }}>
                                 {owner?.display_name || "Noma'lum egasi"}
                               </small>
-
-                              <small style={{ color: "#a78bfa" }}>
-                                {count} ta musiqa
-                              </small>
+                              <small style={{ color: "#a78bfa" }}>{count} ta musiqa</small>
                             </div>
-
                             <ChevronRight size={19} />
                           </button>
                         );
                       })}
 
-                      {playlists.length === 0 && (
-                        <p style={{ color: "#aaa" }}>
-                          Hozircha playlist yo‘q.
-                        </p>
-                      )}
+                      {playlists.length === 0 && <p style={{ color: "#aaa" }}>Hozircha playlist yo'q.</p>}
                     </div>
                   </>
                 )}
@@ -933,10 +831,63 @@ export default function Admin({ onClose }) {
 
             {activeSection === "songs" && (
               <>
+                {/* BITTALAB MUSIQA */}
+                <form onSubmit={uploadSingle} style={card}>
+                  <h3><Music size={18} /> Bittalab musiqa qo'shish</h3>
+
+                  <label>Musiqa fayli</label>
+                  <input
+                    style={input}
+                    type="file"
+                    accept="audio/*"
+                    onChange={e => setSingleAudio(e.target.files?.[0] || null)}
+                    required
+                  />
+
+                  <label>Musiqa nomi</label>
+                  <input
+                    style={input}
+                    placeholder="Masalan: Asylum"
+                    value={singleTitle}
+                    onChange={e => setSingleTitle(e.target.value)}
+                    required
+                  />
+
+                  <label>Ijrochi</label>
+                  <input
+                    style={input}
+                    placeholder="Masalan: PRINCE"
+                    value={singleArtist}
+                    onChange={e => setSingleArtist(e.target.value)}
+                    required
+                  />
+
+                  <label>Janr</label>
+                  <select style={input} value={singleGenre} onChange={e => setSingleGenre(e.target.value)}>
+                    <option>Boshqa</option>
+                    <option>Pop</option>
+                    <option>Rap</option>
+                    <option>Rock</option>
+                    <option>Uzbek</option>
+                    <option>Ruskiy</option>
+                  </select>
+
+                  <label>Muqova rasmi (ixtiyoriy)</label>
+                  <input
+                    style={input}
+                    type="file"
+                    accept="image/*"
+                    onChange={e => setSingleCover(e.target.files?.[0] || null)}
+                  />
+
+                  <button style={button} disabled={singleUploading}>
+                    {singleUploading ? "Yuklanmoqda..." : "Bitta musiqani qo'shish"}
+                  </button>
+                </form>
+
+                {/* BIR NECHTA MUSIQA */}
                 <form onSubmit={uploadMany} style={card}>
-                  <h3>
-                    <Upload size={18} /> Bir nechta musiqa yuklash
-                  </h3>
+                  <h3><Upload size={18} /> Bir nechta musiqa yuklash</h3>
 
                   <label>Musiqalarni tanlang</label>
                   <input
@@ -944,9 +895,7 @@ export default function Admin({ onClose }) {
                     type="file"
                     accept="audio/*"
                     multiple
-                    onChange={e =>
-                      setAudioFiles(Array.from(e.target.files || []))
-                    }
+                    onChange={e => setAudioFiles(Array.from(e.target.files || []))}
                   />
 
                   <label>Ijrochi</label>
@@ -958,11 +907,7 @@ export default function Admin({ onClose }) {
                   />
 
                   <label>Janr</label>
-                  <select
-                    style={input}
-                    value={genre}
-                    onChange={e => setGenre(e.target.value)}
-                  >
+                  <select style={input} value={genre} onChange={e => setGenre(e.target.value)}>
                     <option>Boshqa</option>
                     <option>Pop</option>
                     <option>Rap</option>
@@ -976,9 +921,7 @@ export default function Admin({ onClose }) {
                     style={input}
                     type="file"
                     accept="image/*"
-                    onChange={e =>
-                      setCoverFile(e.target.files?.[0] || null)
-                    }
+                    onChange={e => setCoverFile(e.target.files?.[0] || null)}
                   />
 
                   {audioFiles.length > 0 && (
@@ -987,17 +930,14 @@ export default function Admin({ onClose }) {
                     </p>
                   )}
 
-                  {uploading && (
-                    <p style={{ color: "#a78bfa" }}>
-                      Yuklanmoqda: {progress}%
-                    </p>
-                  )}
+                  {uploading && <p style={{ color: "#a78bfa" }}>Yuklanmoqda: {progress}%</p>}
 
                   <button style={button} disabled={uploading}>
                     {uploading ? "Yuklanmoqda..." : "Musiqalarni yuklash"}
                   </button>
                 </form>
 
+                {/* MUSIQALAR RO'YXATI */}
                 <div style={card}>
                   <h3>Barcha musiqalar ({songs.length})</h3>
 
@@ -1010,32 +950,14 @@ export default function Admin({ onClose }) {
                       borderBottom: "1px solid #302a40"
                     }}>
                       {song.cover_url ? (
-                        <img
-                          src={song.cover_url}
-                          alt=""
-                          style={{
-                            width: 44,
-                            height: 44,
-                            borderRadius: 8,
-                            objectFit: "cover"
-                          }}
-                        />
-                      ) : (
-                        <Music size={25} />
-                      )}
+                        <img src={song.cover_url} alt="" style={{ width: 44, height: 44, borderRadius: 8, objectFit: "cover" }} />
+                      ) : <Music size={25} />}
 
                       <div style={{ flex: 1, minWidth: 0 }}>
-                        <b style={{
-                          display: "block",
-                          overflow: "hidden",
-                          textOverflow: "ellipsis",
-                          whiteSpace: "nowrap"
-                        }}>
+                        <b style={{ display: "block", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                           {song.title}
                         </b>
-                        <small style={{ color: "#aaa" }}>
-                          {song.artist}
-                        </small>
+                        <small style={{ color: "#aaa" }}>{song.artist}</small>
                       </div>
 
                       <button
@@ -1049,9 +971,7 @@ export default function Admin({ onClose }) {
                           padding: 10
                         }}
                       >
-                        {busyId === song.id
-                          ? "..."
-                          : <Trash2 size={18} />}
+                        {busyId === song.id ? "..." : <Trash2 size={18} />}
                       </button>
                     </div>
                   ))}
@@ -1059,19 +979,12 @@ export default function Admin({ onClose }) {
               </>
             )}
 
-            <button
-              onClick={loadData}
-              disabled={loading}
-              style={{
-                ...button,
-                background: "#302344",
-                marginTop: 4
-              }}
-            >
-              <RefreshCw
-                size={16}
-                style={{ verticalAlign: "middle", marginRight: 7 }}
-              />
+            <button onClick={loadData} disabled={loading} style={{
+              ...button,
+              background: "#302344",
+              marginTop: 4
+            }}>
+              <RefreshCw size={16} style={{ verticalAlign: "middle", marginRight: 7 }} />
               {loading ? "Yangilanmoqda..." : "Statistikani yangilash"}
             </button>
           </>
