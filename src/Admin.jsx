@@ -1266,10 +1266,15 @@ export default function Admin({ onClose }) {
                   <input
                     style={input}
                     type="file"
-                    accept="audio/*"
                     onChange={e => setSingleAudio(e.target.files?.[0] || null)}
                     required
                   />
+
+                  {singleAudio && (
+                    <p style={{ color: "#a78bfa", fontSize: 13 }}>
+                      Tanlandi: {singleAudio.name}
+                    </p>
+                  )}
 
                   <label>Musiqa nomi</label>
                   <input
@@ -1324,9 +1329,14 @@ export default function Admin({ onClose }) {
                     style={input}
                     type="file"
                     multiple
-                    accept="audio/*"
                     onChange={e => setAudioFiles(Array.from(e.target.files || []))}
                   />
+
+                  {audioFiles.length > 0 && (
+                    <p style={{ color: "#a78bfa", fontSize: 13 }}>
+                      {audioFiles.length} ta musiqa tanlandi
+                    </p>
+                  )}
 
                   <label>Ijrochi</label>
                   <input
@@ -1357,12 +1367,6 @@ export default function Admin({ onClose }) {
                     accept="image/*"
                     onChange={e => setCoverFile(e.target.files?.[0] || null)}
                   />
-
-                  {audioFiles.length > 0 && (
-                    <p style={{ color: "#aaa", fontSize: 13 }}>
-                      {audioFiles.length} ta musiqa tanlandi
-                    </p>
-                  )}
 
                   {uploading && (
                     <p style={{ color: "#a78bfa" }}>
