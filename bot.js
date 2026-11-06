@@ -4,6 +4,10 @@ import http from "node:http";
 const BOT_TOKEN = process.env.BOT_TOKEN;
 const WEB_APP_URL = "https://espofy.onrender.com";
 
+if (!BOT_TOKEN) {
+  throw new Error("BOT_TOKEN topilmadi!");
+}
+
 const server = http.createServer(async (req, res) => {
   if (req.method === "POST") {
     let body = "";
@@ -36,10 +40,10 @@ const server = http.createServer(async (req, res) => {
             }
           );
 
-          console.log(await response.text());
+          console.log("Telegram:", await response.text());
         }
       } catch (error) {
-        console.error(error);
+        console.error("Xatolik:", error);
       }
 
       res.writeHead(200);
@@ -53,4 +57,23 @@ const server = http.createServer(async (req, res) => {
   res.end("Espofiy bot ishlayapti!");
 });
 
-server.listen(process.env.PORT || 3000);
+server.listen(process.env.PORT || 3000, async () => {
+  console.log("Espofiy bot ishga tushdi!");
+
+  try {
+    const response = await fetch(
+      `https://api.telegram.org/bot${BOT_TOKEN}/setWebhook`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          url: "https://espofy-new.onrender.com/"
+        })
+      }
+    );
+
+    console.log("Webhook:", await response.text());
+  } catch (error) {
+    console.error("Webhook xatosi:", error);
+  }
+});
