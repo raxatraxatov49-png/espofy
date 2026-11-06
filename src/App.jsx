@@ -4,7 +4,7 @@ import {
   SkipBack, SkipForward, Music2, Headphones,
   Lock, Plus, ArrowLeft, Trash2, X,
   ListMusic, ImagePlus, Settings, Globe, Check,
-  Upload, Clock, Music
+  Upload, Clock, Music, Sun, Moon
 } from "lucide-react";
 
 import { supabase } from "./supabase";
@@ -15,6 +15,9 @@ const translations = {
   uz: {
     settings: "Sozlamalar",
     language: "Ilova tili",
+    theme: "Ilova mavzusi",
+    dark: "Qorong‘i",
+    light: "Oq",
     home: "Bosh sahifa",
     search: "Qidiruv",
     library: "Kutubxona",
@@ -78,6 +81,9 @@ const translations = {
   ru: {
     settings: "Настройки",
     language: "Язык приложения",
+    theme: "Тема приложения",
+    dark: "Тёмная",
+    light: "Светлая",
     home: "Главная",
     search: "Поиск",
     library: "Библиотека",
@@ -147,7 +153,6 @@ function safeFileName(name) {
     .slice(-100);
 }
 
-/* Barcha musiqalar uchun yagona muqova */
 function SongCover() {
   return (
     <div className="universal-cover" aria-label="Espofiy music cover">
@@ -158,22 +163,10 @@ function SongCover() {
         xmlns="http://www.w3.org/2000/svg"
         aria-hidden="true"
       >
-        <circle
-          cx="50"
-          cy="50"
-          r="39"
-          fill="none"
-          stroke="rgba(190,140,255,0.13)"
-          strokeWidth="1"
-        />
-        <circle
-          cx="50"
-          cy="50"
-          r="31"
-          fill="none"
-          stroke="rgba(190,140,255,0.10)"
-          strokeWidth="1"
-        />
+        <circle cx="50" cy="50" r="39" fill="none"
+          stroke="rgba(190,140,255,0.13)" strokeWidth="1" />
+        <circle cx="50" cy="50" r="31" fill="none"
+          stroke="rgba(190,140,255,0.10)" strokeWidth="1" />
         <path
           d="M12 52 H29 L37 38 L47 66 L57 28 L67 56 L73 45 L80 52 H89"
           fill="none"
@@ -212,9 +205,15 @@ export default function App() {
   const [showCreate, setShowCreate] = useState(false);
   const [showAddSong, setShowAddSong] = useState(false);
   const [selectedSongId, setSelectedSongId] = useState("");
+
   const [language, setLanguage] = useState(
     () => localStorage.getItem("espofiy-language") || "uz"
   );
+
+  const [theme, setTheme] = useState(
+    () => localStorage.getItem("espofiy-theme") || "dark"
+  );
+
   const [showSettings, setShowSettings] = useState(false);
 
   const [uploadTitle, setUploadTitle] = useState("");
@@ -228,12 +227,21 @@ export default function App() {
   const audioRef = useRef(null);
   const countedPlayRef = useRef(null);
 
-  const t = translations[language];
+  const t = translations[language] || translations.uz;
 
   function changeLanguage(lang) {
     setLanguage(lang);
     localStorage.setItem("espofiy-language", lang);
   }
+
+  function changeTheme(value) {
+    setTheme(value);
+    localStorage.setItem("espofiy-theme", value);
+  }
+
+  useEffect(() => {
+    document.documentElement.dataset.theme = theme;
+  }, [theme]);
 
   useEffect(() => {
     let cancelled = false;
@@ -389,8 +397,6 @@ export default function App() {
     const audioPath =
       `${folder}/audio/${Date.now()}-${safeFileName(uploadAudio.name)}`;
 
-    let audioUrl = null;
-    let coverUrl = null;
     let coverPath = null;
 
     try {
@@ -404,7 +410,8 @@ export default function App() {
         .from("music")
         .getPublicUrl(audioPath);
 
-      audioUrl = audioData.publicUrl;
+      const audioUrl = audioData.publicUrl;
+      let coverUrl = null;
 
       if (uploadCover) {
         coverPath =
@@ -454,9 +461,7 @@ export default function App() {
     } catch (error) {
       console.error("Musiqa yuborish:", error);
 
-      if (audioPath) {
-        await supabase.storage.from("music").remove([audioPath]);
-      }
+      await supabase.storage.from("music").remove([audioPath]);
 
       if (coverPath) {
         await supabase.storage.from("music").remove([coverPath]);
@@ -722,7 +727,7 @@ export default function App() {
   }
 
   return (
-    <div className="app">
+    <div className={`app theme-${theme}`}>
       <audio
         ref={audioRef}
         onEnded={() => {
@@ -767,8 +772,12 @@ export default function App() {
           <div style={modalCardStyle} onClick={e => e.stopPropagation()}>
             <div style={modalHeaderStyle}>
               <b><Settings size={18} /> {t.settings}</b>
-              <button onClick={() => setShowSettings(false)}
-                style={iconButton}><X /></button>
+              <button
+                onClick={() => setShowSettings(false)}
+                style={iconButton}
+              >
+                <X />
+              </button>
             </div>
 
             <p style={{ marginBottom: 14 }}>
@@ -785,6 +794,8 @@ export default function App() {
                 onClick={() => changeLanguage(item.id)}
                 style={{
                   ...languageButtonStyle,
+                  background: theme === "light" ? "#f1f1f5" : "#252033",
+                  color: theme === "light" ? "#171321" : "white",
                   border: language === item.id
                     ? "2px solid #a78bfa"
                     : "1px solid #40364f"
@@ -794,6 +805,41 @@ export default function App() {
                 {language === item.id && <Check color="#a78bfa" />}
               </button>
             ))}
+
+            <div style={{ marginTop: 22 }}>
+              <p style={{ marginBottom: 14 }}>
+                <Sun size={18} style={{ verticalAlign: "middle" }} />{" "}
+                {t.theme}
+              </p>
+
+              {[
+                { id: "dark", icon: <Moon size={19} />, name: t.dark },
+                { id: "light", icon: <Sun size={19} />, name: t.light }
+              ].map(item => (
+                <button
+                  key={item.id}
+                  onClick={() => changeTheme(item.id)}
+                  style={{
+                    ...languageButtonStyle,
+                    background: theme === "light" ? "#f1f1f5" : "#252033",
+                    color: theme === "light" ? "#171321" : "white",
+                    border: theme === item.id
+                      ? "2px solid #a78bfa"
+                      : "1px solid #40364f"
+                  }}
+                >
+                  <span style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 10
+                  }}>
+                    {item.icon}
+                    {item.name}
+                  </span>
+                  {theme === item.id && <Check color="#8b5cf6" />}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
       )}
@@ -858,8 +904,10 @@ export default function App() {
                     <span>{song.artist}</span>
                   </div>
 
-                  <button className="play-small"
-                    onClick={() => playSong(song)}>
+                  <button
+                    className="play-small"
+                    onClick={() => playSong(song)}
+                  >
                     <Play size={18} fill="white" />
                   </button>
                 </div>
@@ -1001,8 +1049,10 @@ export default function App() {
             {selectedPlaylist ? (
               <>
                 <div style={headerStyle}>
-                  <button onClick={() => setSelectedPlaylist(null)}
-                    style={iconButton}>
+                  <button
+                    onClick={() => setSelectedPlaylist(null)}
+                    style={iconButton}
+                  >
                     <ArrowLeft />
                   </button>
 
@@ -1015,8 +1065,10 @@ export default function App() {
                     </p>
                   </div>
 
-                  <button onClick={() => setShowAddSong(true)}
-                    style={iconButton}>
+                  <button
+                    onClick={() => setShowAddSong(true)}
+                    style={iconButton}
+                  >
                     <Plus />
                   </button>
                 </div>
@@ -1052,14 +1104,18 @@ export default function App() {
                     <div className="song" key={song.id}>
                       <SongCover />
 
-                      <div className="song-info"
-                        onClick={() => playSong(song)}>
+                      <div
+                        className="song-info"
+                        onClick={() => playSong(song)}
+                      >
                         <b>{song.title}</b>
                         <span>{song.artist}</span>
                       </div>
 
-                      <button className="play-small"
-                        onClick={() => removeSongFromPlaylist(song.id)}>
+                      <button
+                        className="play-small"
+                        onClick={() => removeSongFromPlaylist(song.id)}
+                      >
                         <X size={18} />
                       </button>
                     </div>
@@ -1074,8 +1130,12 @@ export default function App() {
                     <div style={modalCardStyle}>
                       <div style={modalHeaderStyle}>
                         <b>{t.addSong}</b>
-                        <button onClick={() => setShowAddSong(false)}
-                          style={iconButton}><X /></button>
+                        <button
+                          onClick={() => setShowAddSong(false)}
+                          style={iconButton}
+                        >
+                          <X />
+                        </button>
                       </div>
 
                       <select
@@ -1091,8 +1151,10 @@ export default function App() {
                         ))}
                       </select>
 
-                      <button onClick={addSongToPlaylist}
-                        style={mainButtonStyle}>
+                      <button
+                        onClick={addSongToPlaylist}
+                        style={mainButtonStyle}
+                      >
                         {t.addToPlaylist}
                       </button>
                     </div>
@@ -1103,15 +1165,22 @@ export default function App() {
               <>
                 <div style={headerStyle}>
                   <h2 className="section-title">{t.myPlaylists}</h2>
-                  <button onClick={() => setShowCreate(true)}
-                    style={iconButton}><Plus /></button>
+                  <button
+                    onClick={() => setShowCreate(true)}
+                    style={iconButton}
+                  >
+                    <Plus />
+                  </button>
                 </div>
 
                 <div className="songs">
                   {playlists.map(playlist => (
-                    <div className="song" key={playlist.id}
+                    <div
+                      className="song"
+                      key={playlist.id}
                       onClick={() => openPlaylist(playlist)}
-                      style={{ cursor: "pointer" }}>
+                      style={{ cursor: "pointer" }}
+                    >
                       <div className="cover playlist-row-cover">
                         {playlist.cover_url
                           ? <img src={playlist.cover_url} alt="" />
@@ -1123,11 +1192,13 @@ export default function App() {
                         <span>{playlist.songCount} {t.songs}</span>
                       </div>
 
-                      <button className="play-small"
+                      <button
+                        className="play-small"
                         onClick={e => {
                           e.stopPropagation();
                           deletePlaylist(playlist);
-                        }}>
+                        }}
+                      >
                         <Trash2 size={17} />
                       </button>
                     </div>
@@ -1138,8 +1209,10 @@ export default function App() {
                       <Music2 size={35} />
                       <h3>{t.noPlaylist}</h3>
                       <p>{t.createFirst}</p>
-                      <button onClick={() => setShowCreate(true)}
-                        style={mainButtonStyle}>
+                      <button
+                        onClick={() => setShowCreate(true)}
+                        style={mainButtonStyle}
+                      >
                         <Plus size={18} /> {t.createPlaylist}
                       </button>
                     </div>
@@ -1153,8 +1226,12 @@ export default function App() {
                 <div style={modalCardStyle}>
                   <div style={modalHeaderStyle}>
                     <b>{t.newPlaylist}</b>
-                    <button onClick={() => setShowCreate(false)}
-                      style={iconButton}><X /></button>
+                    <button
+                      onClick={() => setShowCreate(false)}
+                      style={iconButton}
+                    >
+                      <X />
+                    </button>
                   </div>
 
                   <input
@@ -1164,8 +1241,10 @@ export default function App() {
                     style={inputStyle}
                   />
 
-                  <button onClick={createPlaylist}
-                    style={mainButtonStyle}>
+                  <button
+                    onClick={createPlaylist}
+                    style={mainButtonStyle}
+                  >
                     <Plus size={18} /> {t.create}
                   </button>
                 </div>
@@ -1189,44 +1268,60 @@ export default function App() {
           </div>
 
           <div className="controls">
-            <button onClick={previousSong}><SkipBack size={19} /></button>
+            <button onClick={previousSong}>
+              <SkipBack size={19} />
+            </button>
             <button onClick={() => playSong(currentSong)}>
               {playing
                 ? <Pause size={22} />
                 : <Play size={22} fill="white" />}
             </button>
-            <button onClick={nextSong}><SkipForward size={19} /></button>
+            <button onClick={nextSong}>
+              <SkipForward size={19} />
+            </button>
           </div>
         </div>
       )}
 
       <nav className="bottom-nav">
-        <button onClick={() => {
-          setTab("home");
-          setSelectedPlaylist(null);
-        }} className={tab === "home" ? "active" : ""}>
+        <button
+          onClick={() => {
+            setTab("home");
+            setSelectedPlaylist(null);
+          }}
+          className={tab === "home" ? "active" : ""}
+        >
           <Home /><span>{t.home}</span>
         </button>
 
-        <button onClick={() => {
-          setTab("search");
-          setSelectedPlaylist(null);
-        }} className={tab === "search" ? "active" : ""}>
+        <button
+          onClick={() => {
+            setTab("search");
+            setSelectedPlaylist(null);
+          }}
+          className={tab === "search" ? "active" : ""}
+        >
           <Search /><span>{t.search}</span>
         </button>
 
-        <button onClick={() => {
-          setTab("upload");
-          setSelectedPlaylist(null);
-          loadMySubmissions();
-        }} className={tab === "upload" ? "active" : ""}>
+        <button
+          onClick={() => {
+            setTab("upload");
+            setSelectedPlaylist(null);
+            loadMySubmissions();
+          }}
+          className={tab === "upload" ? "active" : ""}
+        >
           <Upload /><span>{t.upload}</span>
         </button>
 
-        <button onClick={() => {
-          setTab("library");
-          setSelectedPlaylist(null);
-        }} className={tab === "library" ? "active" : ""}>
+        <button
+          onClick={() => {
+            setTab("library");
+            setSelectedPlaylist(null);
+          }}
+          className={tab === "library" ? "active" : ""}
+        >
           <Library /><span>{t.library}</span>
         </button>
       </nav>
@@ -1284,7 +1379,9 @@ const modalCardStyle = {
   background: "#171321",
   borderRadius: 18,
   padding: 20,
-  color: "white"
+  color: "white",
+  maxHeight: "85vh",
+  overflowY: "auto"
 };
 
 const modalHeaderStyle = {
