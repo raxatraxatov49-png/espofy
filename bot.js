@@ -1,4 +1,3 @@
-
 import http from "node:http";
 
 const BOT_TOKEN = process.env.BOT_TOKEN;
@@ -16,22 +15,27 @@ const server = http.createServer(async (req, res) => {
         const message = update.message;
 
         if (message?.text?.startsWith("/start")) {
-          await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              chat_id: message.chat.id,
-              text: "🎵 Сәлем! Espofiy ботына қош келдіңіз!\n\nМұнда сүйікті әндеріңізді тыңдап, жаңа музыкаларды тауып, өз плейлисттеріңізді жасай аласыз. 🎧",
-              reply_markup: {
-                inline_keyboard: [[
-                  {
-                    text: "🎧 Слушать музыку",
-                    web_app: { url: WEB_APP_URL }
-                  }
-                ]]
-              }
-            })
-          });
+          const response = await fetch(
+            `https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`,
+            {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                chat_id: message.chat.id,
+                text: "🎵 Сәлем! Espofiy ботына қош келдіңіз!\n\nМұнда сүйікті әндеріңізді тыңдап, жаңа музыкаларды тауып, өз плейлисттеріңізді жасай аласыз. 🎧",
+                reply_markup: {
+                  inline_keyboard: [[
+                    {
+                      text: "🎧 Музыка тыңдау",
+                      web_app: { url: WEB_APP_URL }
+                    }
+                  ]]
+                }
+              })
+            }
+          );
+
+          console.log(await response.text());
         }
       } catch (error) {
         console.error(error);
