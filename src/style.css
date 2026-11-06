@@ -813,3 +813,7 @@ html[data-theme="light"] .theme-light {
 html[data-theme="light"] .app > div[style*="position: fixed"] {
   color: #21152e;
 }
+
+.bottom-nav {
+  bottom: calc(env(safe-area-inset-bottom, 0px) - 15px) !important;
+}
