@@ -4,8 +4,7 @@ import {
   ArrowLeft, Music, Trash2, Upload, LogOut,
   RefreshCw, Headphones, ListMusic,
   ChevronRight, TrendingUp, Play, Check, X,
-  Pencil, Save, Users, UserPlus, Activity,
-  Search, CalendarDays
+  Pencil, Save, Activity
 } from "lucide-react";
 import { supabase } from "./supabase";
 
@@ -41,7 +40,6 @@ export default function Admin({ onClose }) {
   const [password, setPassword] = useState("");
 
   const [songs, setSongs] = useState([]);
-  const [users, setUsers] = useState([]);
   const [playlists, setPlaylists] = useState([]);
   const [playlistRelations, setPlaylistRelations] = useState([]);
 
@@ -76,10 +74,6 @@ export default function Admin({ onClose }) {
   const [editingId, setEditingId] = useState(null);
   const [editTitle, setEditTitle] = useState("");
   const [editArtist, setEditArtist] = useState("");
-
-  // Yangi foydalanuvchilar statistikasi
-  const [userSearch, setUserSearch] = useState("");
-  const [userFilter, setUserFilter] = useState("all");
 
   useEffect(() => {
     checkSession();
@@ -149,17 +143,12 @@ export default function Admin({ onClose }) {
 
     const [
       songsResult,
-      usersResult,
       playlistsResult,
       relationsResult,
       songCountResult,
       playlistCountResult
     ] = await Promise.all([
       supabase.from("songs")
-        .select("*")
-        .order("created_at", { ascending: false }),
-
-      supabase.from("app_users")
         .select("*")
         .order("created_at", { ascending: false }),
 
@@ -181,17 +170,6 @@ export default function Admin({ onClose }) {
       setError("Musiqalarni yuklash: " + songsResult.error.message);
     } else {
       setSongs(songsResult.data || []);
-    }
-
-    if (usersResult.error) {
-      setUsers([]);
-      setError(prev =>
-        prev
-          ? prev + " | Foydalanuvchilar: " + usersResult.error.message
-          : "Foydalanuvchilarni yuklash: " + usersResult.error.message
-      );
-    } else {
-      setUsers(usersResult.data || []);
     }
 
     if (playlistsResult.error) {
@@ -537,48 +515,6 @@ export default function Admin({ onClose }) {
     }
   }
 
-  // STATISTIKA HISOBLASH
-
-  const now = new Date();
-
-  const todayStart = new Date(
-    now.getFullYear(),
-    now.getMonth(),
-    now.getDate()
-  );
-
-  const weekStart = new Date(
-    now.getTime() - 7 * 24 * 60 * 60 * 1000
-  );
-
-  const monthStart = new Date(
-    now.getFullYear(),
-    now.getMonth(),
-    1
-  );
-
-  const totalUsers = users.length;
-
-  const todayUsers = users.filter(user =>
-    user.created_at &&
-    new Date(user.created_at) >= todayStart
-  ).length;
-
-  const monthUsers = users.filter(user =>
-    user.created_at &&
-    new Date(user.created_at) >= monthStart
-  ).length;
-
-  const activeToday = users.filter(user =>
-    user.last_seen &&
-    new Date(user.last_seen) >= todayStart
-  ).length;
-
-  const activeWeek = users.filter(user =>
-    user.last_seen &&
-    new Date(user.last_seen) >= weekStart
-  ).length;
-
   const pendingSongs = songs.filter(
     song => song.is_published === false && song.submitted_by
   );
@@ -615,52 +551,6 @@ export default function Admin({ onClose }) {
   )
     .sort((a, b) => b.plays - a.plays)
     .slice(0, 10);
-
-  const recentUsers = [...users]
-    .sort((a, b) =>
-      new Date(b.created_at || 0) -
-      new Date(a.created_at || 0)
-    )
-    .slice(0, 10);
-
-  const filteredUsers = [...users]
-    .filter(user => {
-      const search = userSearch.trim().toLowerCase();
-
-      const matchesSearch =
-        !search ||
-        String(user.id || "").toLowerCase().includes(search) ||
-        String(user.username || "").toLowerCase().includes(search) ||
-        String(user.display_name || "").toLowerCase().includes(search);
-
-      const lastSeen = user.last_seen
-        ? new Date(user.last_seen)
-        : null;
-
-      let matchesFilter = true;
-
-      if (userFilter === "today") {
-        matchesFilter = lastSeen && lastSeen >= todayStart;
-      } else if (userFilter === "week") {
-        matchesFilter = lastSeen && lastSeen >= weekStart;
-      } else if (userFilter === "new") {
-        matchesFilter =
-          user.created_at &&
-          new Date(user.created_at) >= todayStart;
-      }
-
-      return matchesSearch && matchesFilter;
-    })
-    .sort((a, b) =>
-      new Date(b.created_at || 0) -
-      new Date(a.created_at || 0)
-    );
-
-  const userMap = {};
-
-  users.forEach(user => {
-    userMap[user.id] = user;
-  });
 
   const card = {
     background: "#191724",
@@ -720,10 +610,6 @@ export default function Admin({ onClose }) {
   });
 
   function renderSong(song, showSubmitter = false) {
-    const owner = song.submitted_by
-      ? userMap[song.submitted_by]
-      : null;
-
     return (
       <div key={song.id} style={{
         padding: 13,
@@ -800,28 +686,16 @@ export default function Admin({ onClose }) {
             borderRadius: 9
           }}>
             <small style={{ color: "#a78bfa" }}>
-              Yuborgan foydalanuvchi
+              Yuborgan foydalanuvchi ID
             </small>
 
-            <p style={{ margin: "5px 0", fontWeight: 700 }}>
-              {owner?.display_name || "Noma'lum foydalanuvchi"}
-            </p>
-
-            {owner?.username && (
-              <small style={{ color: "#aaa" }}>
-                @{owner.username}
-              </small>
-            )}
-
-            <small style={{
-              display: "block",
-              color: "#777",
-              fontSize: 10,
-              wordBreak: "break-all",
-              marginTop: 4
+            <p style={{
+              margin: "5px 0",
+              fontSize: 12,
+              wordBreak: "break-all"
             }}>
-              ID: {song.submitted_by}
-            </small>
+              {song.submitted_by || "Noma'lum"}
+            </p>
 
             <small style={{
               display: "block",
@@ -1030,18 +904,6 @@ export default function Admin({ onClose }) {
               </button>
 
               <button
-                style={sectionButton("users")}
-                onClick={() => {
-                  setActiveSection("users");
-                  setUserSearch("");
-                  setUserFilter("all");
-                }}
-              >
-                <Users size={15} />
-                <br />Users ({totalUsers})
-              </button>
-
-              <button
                 style={sectionButton("playlists")}
                 onClick={() => {
                   setActiveSection("playlists");
@@ -1091,12 +953,6 @@ export default function Admin({ onClose }) {
                   gap: 10
                 }}>
                   <div style={card}>
-                    <Users color="#a78bfa" />
-                    <h2>{totalUsers.toLocaleString("uz-UZ")}</h2>
-                    <small>Foydalanuvchilar</small>
-                  </div>
-
-                  <div style={card}>
                     <Headphones color="#a78bfa" />
                     <h2>{totalPlays.toLocaleString("uz-UZ")}</h2>
                     <small>Jami tinglashlar</small>
@@ -1113,78 +969,12 @@ export default function Admin({ onClose }) {
                     <h2>{playlistCount}</h2>
                     <small>Playlistlar</small>
                   </div>
-                </div>
 
-                {/* USER STATS */}
-
-                <div style={card}>
-                  <h3 style={{ marginTop: 0 }}>
-                    <Users
-                      size={18}
-                      style={{ verticalAlign: "middle" }}
-                    /> Foydalanuvchilar statistikasi
-                  </h3>
-
-                  <div style={{
-                    display: "grid",
-                    gridTemplateColumns: "1fr 1fr",
-                    gap: 10
-                  }}>
-                    {[
-                      {
-                        title: "Jami foydalanuvchilar",
-                        value: totalUsers,
-                        icon: <Users color="#a78bfa" />
-                      },
-                      {
-                        title: "Bugun qo'shilganlar",
-                        value: todayUsers,
-                        icon: <UserPlus color="#34d399" />
-                      },
-                      {
-                        title: "Bugun faol",
-                        value: activeToday,
-                        icon: <Activity color="#38bdf8" />
-                      },
-                      {
-                        title: "7 kunda faol",
-                        value: activeWeek,
-                        icon: <TrendingUp color="#fbbf24" />
-                      },
-                      {
-                        title: "Shu oy qo'shilgan",
-                        value: monthUsers,
-                        icon: <CalendarDays color="#c084fc" />
-                      }
-                    ].map(item => (
-                      <div key={item.title} style={{
-                        background: "#100e18",
-                        border: "1px solid #302a40",
-                        borderRadius: 12,
-                        padding: 13
-                      }}>
-                        {item.icon}
-
-                        <h2 style={{
-                          margin: "8px 0",
-                          color: "#c4a8ff"
-                        }}>
-                          {item.value.toLocaleString("uz-UZ")}
-                        </h2>
-
-                        <small style={{ color: "#aaa" }}>
-                          {item.title}
-                        </small>
-                      </div>
-                    ))}
+                  <div style={card}>
+                    <Activity color="#a78bfa" />
+                    <h2>{pendingSongs.length}</h2>
+                    <small>Tekshiruvdagi musiqalar</small>
                   </div>
-
-                  <button
-                    onClick={() => setActiveSection("users")}
-                    style={{ ...button, marginTop: 14 }}
-                  >
-                    Barcha foydalanuvchilarni ko'rish
-                  </button>
                 </div>
 
                 {/* TOP SONGS */}
@@ -1308,323 +1098,6 @@ export default function Admin({ onClose }) {
               </>
             )}
 
-            {/* USERS SECTION */}
-
-            {activeSection === "users" && (
-              <>
-                <div style={{
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "space-between",
-                  marginBottom: 14
-                }}>
-                  <h3 style={{ margin: 0 }}>
-                    <Users
-                      size={19}
-                      style={{ verticalAlign: "middle" }}
-                    /> Foydalanuvchilar
-                  </h3>
-
-                  <button
-                    onClick={loadData}
-                    disabled={loading}
-                    style={smallButton}
-                  >
-                    <RefreshCw size={17} />
-                  </button>
-                </div>
-
-                {/* USER CARDS */}
-
-                <div style={{
-                  display: "grid",
-                  gridTemplateColumns: "1fr 1fr",
-                  gap: 10
-                }}>
-                  {[
-                    {
-                      title: "Jami",
-                      value: totalUsers,
-                      color: "#a78bfa",
-                      icon: <Users />
-                    },
-                    {
-                      title: "Bugun yangi",
-                      value: todayUsers,
-                      color: "#34d399",
-                      icon: <UserPlus />
-                    },
-                    {
-                      title: "Bugun faol",
-                      value: activeToday,
-                      color: "#38bdf8",
-                      icon: <Activity />
-                    },
-                    {
-                      title: "Haftalik faol",
-                      value: activeWeek,
-                      color: "#fbbf24",
-                      icon: <TrendingUp />
-                    }
-                  ].map(item => (
-                    <div key={item.title} style={{
-                      ...card,
-                      marginBottom: 0
-                    }}>
-                      <div style={{ color: item.color }}>
-                        {item.icon}
-                      </div>
-
-                      <h2 style={{
-                        color: item.color,
-                        margin: "8px 0"
-                      }}>
-                        {item.value.toLocaleString("uz-UZ")}
-                      </h2>
-
-                      <small style={{ color: "#aaa" }}>
-                        {item.title}
-                      </small>
-                    </div>
-                  ))}
-                </div>
-
-                {/* SEARCH */}
-
-                <div style={{
-                  ...card,
-                  marginTop: 14
-                }}>
-                  <h3 style={{ marginTop: 0 }}>
-                    <Search
-                      size={17}
-                      style={{ verticalAlign: "middle" }}
-                    /> Qidirish
-                  </h3>
-
-                  <input
-                    style={input}
-                    placeholder="Ism, username yoki Telegram ID..."
-                    value={userSearch}
-                    onChange={e => setUserSearch(e.target.value)}
-                  />
-
-                  <div style={{
-                    display: "grid",
-                    gridTemplateColumns: "1fr 1fr",
-                    gap: 8
-                  }}>
-                    {[
-                      ["all", "Hammasi"],
-                      ["today", "Bugun faol"],
-                      ["week", "7 kun faol"],
-                      ["new", "Bugun yangi"]
-                    ].map(([value, label]) => (
-                      <button
-                        key={value}
-                        onClick={() => setUserFilter(value)}
-                        style={{
-                          padding: 10,
-                          borderRadius: 9,
-                          border: userFilter === value
-                            ? "1px solid #a78bfa"
-                            : "1px solid #393247",
-                          background: userFilter === value
-                            ? "#302344"
-                            : "#100e18",
-                          color: "white",
-                          cursor: "pointer"
-                        }}
-                      >
-                        {label}
-                      </button>
-                    ))}
-                  </div>
-
-                  <p style={{
-                    color: "#aaa",
-                    fontSize: 12,
-                    marginBottom: 0
-                  }}>
-                    Topildi: {filteredUsers.length} / {totalUsers}
-                  </p>
-                </div>
-
-                {/* RECENT USERS */}
-
-                <div style={card}>
-                  <h3 style={{ marginTop: 0 }}>
-                    <UserPlus
-                      size={17}
-                      style={{ verticalAlign: "middle" }}
-                    /> Oxirgi qo'shilganlar
-                  </h3>
-
-                  {recentUsers.map(user => (
-                    <div key={user.id} style={{
-                      background: "#100e18",
-                      border: "1px solid #302a40",
-                      borderRadius: 11,
-                      padding: 12,
-                      marginBottom: 9
-                    }}>
-                      <div style={{
-                        display: "flex",
-                        alignItems: "center",
-                        gap: 10
-                      }}>
-                        <div style={{
-                          width: 42,
-                          height: 42,
-                          borderRadius: "50%",
-                          background: "#302344",
-                          display: "grid",
-                          placeItems: "center",
-                          flexShrink: 0
-                        }}>
-                          <Users size={20} color="#c4a8ff" />
-                        </div>
-
-                        <div style={{ flex: 1, minWidth: 0 }}>
-                          <b>{user.display_name || "Noma'lum"}</b>
-
-                          <small style={{
-                            display: "block",
-                            color: "#a78bfa",
-                            marginTop: 3
-                          }}>
-                            {user.username
-                              ? "@" + user.username
-                              : "Username yo'q"}
-                          </small>
-                        </div>
-
-                        <span style={{
-                          color: "#34d399",
-                          fontSize: 11
-                        }}>
-                          Yangi
-                        </span>
-                      </div>
-
-                      <small style={{
-                        display: "block",
-                        color: "#888",
-                        marginTop: 10,
-                        wordBreak: "break-all"
-                      }}>
-                        Telegram ID: {user.id}
-                      </small>
-
-                      <small style={{
-                        display: "block",
-                        color: "#888",
-                        marginTop: 5
-                      }}>
-                        Ro'yxatdan o'tgan: {formatDate(user.created_at)}
-                      </small>
-
-                      <small style={{
-                        display: "block",
-                        color: "#34d399",
-                        marginTop: 5
-                      }}>
-                        Oxirgi kirish: {formatDate(user.last_seen)}
-                      </small>
-                    </div>
-                  ))}
-
-                  {recentUsers.length === 0 && (
-                    <p style={{ color: "#aaa" }}>
-                      Foydalanuvchilar topilmadi.
-                    </p>
-                  )}
-                </div>
-
-                {/* ALL USERS */}
-
-                <div style={card}>
-                  <h3 style={{ marginTop: 0 }}>
-                    Barcha foydalanuvchilar
-                  </h3>
-
-                  {filteredUsers.map(user => (
-                    <div key={user.id} style={{
-                      padding: 13,
-                      borderBottom: "1px solid #302a40"
-                    }}>
-                      <div style={{
-                        display: "flex",
-                        alignItems: "center",
-                        gap: 10
-                      }}>
-                        <div style={{
-                          width: 38,
-                          height: 38,
-                          borderRadius: "50%",
-                          background: "#302344",
-                          display: "grid",
-                          placeItems: "center"
-                        }}>
-                          <Users size={18} />
-                        </div>
-
-                        <div style={{ flex: 1, minWidth: 0 }}>
-                          <b>
-                            {user.display_name || "Noma'lum foydalanuvchi"}
-                          </b>
-
-                          <small style={{
-                            display: "block",
-                            color: "#a78bfa",
-                            marginTop: 3
-                          }}>
-                            {user.username
-                              ? "@" + user.username
-                              : "Username mavjud emas"}
-                          </small>
-                        </div>
-                      </div>
-
-                      <small style={{
-                        display: "block",
-                        color: "#888",
-                        marginTop: 9,
-                        wordBreak: "break-all"
-                      }}>
-                        Telegram ID: {user.id}
-                      </small>
-
-                      <small style={{
-                        display: "block",
-                        color: "#888",
-                        marginTop: 5
-                      }}>
-                        Qo'shilgan: {formatDate(user.created_at)}
-                      </small>
-
-                      <small style={{
-                        display: "block",
-                        color: "#34d399",
-                        marginTop: 5
-                      }}>
-                        Oxirgi kirish: {formatDate(user.last_seen)}
-                      </small>
-                    </div>
-                  ))}
-
-                  {filteredUsers.length === 0 && (
-                    <p style={{
-                      color: "#aaa",
-                      textAlign: "center"
-                    }}>
-                      Foydalanuvchilar topilmadi.
-                    </p>
-                  )}
-                </div>
-              </>
-            )}
-
             {/* PENDING SONGS */}
 
             {activeSection === "pending" && (
@@ -1707,21 +1180,12 @@ export default function Admin({ onClose }) {
 
                     <div style={card}>
                       <p style={{ color: "#aaa" }}>
-                        Playlist egasi:
+                        Playlist egasining ID raqami:
                       </p>
 
-                      <b>
-                        {userMap[selectedPlaylist.user_id]?.display_name ||
-                          "Noma'lum foydalanuvchi"}
+                      <b style={{ wordBreak: "break-all" }}>
+                        {selectedPlaylist.user_id || "Mavjud emas"}
                       </b>
-
-                      <p style={{
-                        color: "#aaa",
-                        fontSize: 12,
-                        wordBreak: "break-all"
-                      }}>
-                        ID: {selectedPlaylist.user_id || "Mavjud emas"}
-                      </p>
 
                       <p style={{ color: "#aaa" }}>
                         Yaratilgan: {formatDate(selectedPlaylist.created_at)}
@@ -1778,8 +1242,6 @@ export default function Admin({ onClose }) {
 
                     <div style={card}>
                       {playlists.map(playlist => {
-                        const owner = userMap[playlist.user_id];
-
                         const count = playlistRelations.filter(
                           r => r.playlist_id === playlist.id
                         ).length;
@@ -1833,13 +1295,9 @@ export default function Admin({ onClose }) {
 
                               <small style={{
                                 display: "block",
-                                color: "#aaa",
+                                color: "#a78bfa",
                                 marginTop: 4
                               }}>
-                                {owner?.display_name || "Noma'lum egasi"}
-                              </small>
-
-                              <small style={{ color: "#a78bfa" }}>
                                 {count} ta musiqa
                               </small>
                             </div>
