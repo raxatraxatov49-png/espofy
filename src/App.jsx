@@ -211,7 +211,6 @@ export default function App() {
   const [tab, setTab] = useState("home");
   const [search, setSearch] = useState("");
 
-  // YOUTUBE QIDIRUV VA PLAYER
   const [youtubeResults, setYoutubeResults] = useState([]);
   const [youtubeLoading, setYoutubeLoading] = useState(false);
   const [youtubeError, setYoutubeError] = useState("");
@@ -260,74 +259,68 @@ export default function App() {
     document.documentElement.dataset.theme = theme;
   }, [theme]);
 
-  // FOYDALANUVCHINI ANIQLASH
+  // FOYDALANUVCHINI ANIQLASH VA BAZAGA SAQLASH
   useEffect(() => {
     let cancelled = false;
 
     async function setupUser() {
-      const { data, error: sessionError } =
-        await supabase.auth.getSession();
+      try {
+        const { data, error: sessionError } =
+          await supabase.auth.getSession();
 
-      if (sessionError) {
-        console.error(sessionError.message);
-        return;
-      }
+        if (sessionError) throw sessionError;
 
-      let user = data.session?.user;
+        let user = data.session?.user;
 
-      if (!user) {
-        const { data: result, error } =
-          await supabase.auth.signInAnonymously();
+        if (!user) {
+          const { data: result, error } =
+            await supabase.auth.signInAnonymously();
 
-        if (error) {
-          alert(t.loginError + error.message);
+          if (error) throw error;
+
+          user = result.user;
+        }
+
+        if (!user || cancelled) return;
+
+        setUserId(user.id);
+
+        const telegramUser =
+          window.Telegram?.WebApp?.initDataUnsafe?.user;
+
+        const displayName = telegramUser
+          ? [
+              telegramUser.first_name,
+              telegramUser.last_name
+            ].filter(Boolean).join(" ") ||
+              telegramUser.username ||
+              null
+          : null;
+
+        const username = telegramUser?.username || null;
+
+        const { error: saveError } = await supabase
+          .from("app_users")
+          .upsert(
+            {
+              id: user.id,
+              display_name: displayName,
+              username,
+              last_seen: new Date().toISOString()
+            },
+            { onConflict: "id" }
+          );
+
+        if (saveError) {
+          console.error("FOYDALANUVCHINI SAQLASH XATOSI:", saveError);
+          alert("Foydalanuvchini saqlashda xatolik: " + saveError.message);
           return;
         }
 
-        user = result.user;
-      }
-
-      if (!user || cancelled) return;
-
-      setUserId(user.id);
-
-      const telegramUser =
-        window.Telegram?.WebApp?.initDataUnsafe?.user;
-
-      const displayName = telegramUser
-        ? [
-            telegramUser.first_name,
-            telegramUser.last_name
-          ].filter(Boolean).join(" ") ||
-            telegramUser.username ||
-            null
-        : null;
-
-      const username = telegramUser?.username || null;
-
-      const { error: insertError } = await supabase
-        .from("app_users")
-        .insert({
-          id: user.id,
-          display_name: displayName,
-          username
-        });
-
-      if (insertError?.code === "23505") {
-        const { error: updateError } = await supabase
-          .from("app_users")
-          .update({
-            display_name: displayName,
-            username,
-            last_seen: new Date().toISOString()
-          })
-          .eq("id", user.id);
-
-        if (updateError) {
-          console.error("Foydalanuvchini yangilash:", updateError.message);
-        }
-      } else if (insertError) {
-        console.error("Foydalanuvchini saqlash:", insertError.message);
+        console.log("Foydalanuvchi bazaga saqlandi:", user.id);
+      } catch (error) {
+        console.error("FOYDALANUVCHI XATOSI:", error);
+        alert("Foydalanuvchi aniqlanmadi: " + error.message);
       }
     }
 
@@ -357,7 +350,6 @@ export default function App() {
     setSongs(data || []);
   }
 
-  // E'LONLARNI YUKLASH
   async function loadAnnouncements() {
     const { data, error } = await supabase
       .from("announcements")
@@ -1105,7 +1097,6 @@ export default function App() {
               }}
             />
 
-            {/* ESPOFIY MUSIQALARI */}
             {filteredSongs.length > 0 && (
               <>
                 <p className="small" style={{ margin: "15px 0 10px" }}>
@@ -1136,7 +1127,6 @@ export default function App() {
               </>
             )}
 
-            {/* YOUTUBE NATIJALARI */}
             {search.trim().length >= 2 && filteredSongs.length === 0 && (
               <>
                 <p className="small" style={{ margin: "20px 0 12px" }}>
@@ -1240,7 +1230,6 @@ export default function App() {
                 style={inputStyle}
               />
 
-              {/* AUDIO FAYL TANLASH — IPHONE UCHUN TUZATILDI */}
               <label style={formLabelStyle}>{t.audioFile}</label>
 
               <div style={{
@@ -1274,7 +1263,6 @@ export default function App() {
                 />
               </div>
 
-              {/* MUQOVA RASMI TANLASH — IPHONE UCHUN TUZATILDI */}
               <label style={formLabelStyle}>{t.coverFile}</label>
 
               <div style={{
@@ -1413,7 +1401,6 @@ export default function App() {
                       : <ListMusic size={55} />}
                   </div>
 
-                  {/* PLAYLIST MUQOVASI TANLASH — IPHONE UCHUN TUZATILDI */}
                   <label style={{
                     ...coverButtonStyle,
                     position: "relative",
