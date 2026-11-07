@@ -1009,3 +1009,694 @@ html[data-theme="light"] .app > div[style*="position: fixed"] {
     animation: none !important;
   }
 }
+
+/* =========================================
+   ESPOFIY — FULL SCREEN LIQUID GLASS PLAYER
+========================================= */
+
+audio {
+  display: none;
+}
+
+.full-player {
+  position: fixed;
+  inset: 0;
+  z-index: 9999999;
+
+  width: 100%;
+  height: 100dvh;
+  min-height: 100vh;
+
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+
+  padding:
+    calc(env(safe-area-inset-top, 0px) + 12px)
+    24px
+    calc(env(safe-area-inset-bottom, 0px) + 25px);
+
+  color: #fff;
+
+  background:
+    radial-gradient(
+      ellipse at 50% 30%,
+      rgba(133, 55, 205, .38),
+      transparent 48%
+    ),
+    radial-gradient(
+      ellipse at 10% 90%,
+      rgba(70, 35, 130, .30),
+      transparent 45%
+    ),
+    linear-gradient(160deg, #21112f, #090710 75%);
+
+  animation: fullPlayerIn .55s cubic-bezier(.22, 1, .36, 1);
+  isolation: isolate;
+}
+
+@keyframes fullPlayerIn {
+  from {
+    opacity: 0;
+    transform: translateY(35px) scale(.97);
+    filter: blur(12px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    filter: blur(0);
+  }
+}
+
+/* ORQA FON YORUG‘LIKLARI */
+
+.full-player-glow {
+  position: absolute;
+  z-index: -1;
+  border-radius: 50%;
+  pointer-events: none;
+  filter: blur(75px);
+  animation: playerGlow 8s ease-in-out infinite alternate;
+}
+
+.full-player-glow-one {
+  width: 280px;
+  height: 280px;
+  top: 15%;
+  left: -100px;
+  background: rgba(168, 85, 247, .35);
+}
+
+.full-player-glow-two {
+  width: 260px;
+  height: 260px;
+  bottom: 5%;
+  right: -100px;
+  background: rgba(112, 43, 192, .30);
+  animation-delay: -4s;
+}
+
+@keyframes playerGlow {
+  from {
+    transform: scale(.85);
+    opacity: .55;
+  }
+
+  to {
+    transform: scale(1.2);
+    opacity: 1;
+  }
+}
+
+/* YUQORI PANEL */
+
+.full-player-top {
+  position: relative;
+  z-index: 2;
+
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+
+  flex-shrink: 0;
+}
+
+.full-player-heading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  text-align: center;
+}
+
+.full-player-heading span {
+  font-size: 15px;
+  font-weight: 900;
+  letter-spacing: 4px;
+}
+
+.full-player-heading small {
+  font-size: 9px;
+  color: #c5a4e9;
+  font-weight: 800;
+  letter-spacing: 2px;
+}
+
+/* SHISHA TUGMALAR */
+
+.glass-icon-button,
+.glass-control-button {
+  display: grid;
+  place-items: center;
+
+  color: white;
+  cursor: pointer;
+
+  background: rgba(255, 255, 255, .09);
+  border: 1px solid rgba(255, 255, 255, .19);
+
+  backdrop-filter: blur(25px) saturate(180%);
+  -webkit-backdrop-filter: blur(25px) saturate(180%);
+
+  box-shadow:
+    inset 0 1px 1px rgba(255, 255, 255, .22),
+    0 8px 25px rgba(0, 0, 0, .16);
+
+  transition:
+    transform .3s cubic-bezier(.2, 1.4, .4, 1),
+    background .3s ease;
+}
+
+.glass-icon-button {
+  width: 43px;
+  height: 43px;
+  border-radius: 50%;
+}
+
+.glass-icon-button:active,
+.glass-control-button:active {
+  transform: scale(.84);
+  background: rgba(190, 130, 255, .3);
+}
+
+/* PLAYER MARKAZI */
+
+.full-player-content {
+  position: relative;
+  z-index: 1;
+
+  flex: 1;
+  min-height: 0;
+
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+
+  width: 100%;
+  gap: clamp(22px, 5vh, 45px);
+}
+
+/* KATTA MUQOVA */
+
+.full-player-art {
+  position: relative;
+
+  width: min(76vw, 340px);
+  aspect-ratio: 1 / 1;
+
+  display: grid;
+  place-items: center;
+
+  flex-shrink: 1;
+  min-height: 0;
+
+  animation: coverFloat 5s ease-in-out infinite;
+}
+
+@keyframes coverFloat {
+  0%, 100% {
+    transform: translateY(0);
+  }
+
+  50% {
+    transform: translateY(-9px);
+  }
+}
+
+.full-player-art-glow {
+  position: absolute;
+  inset: 8%;
+
+  border-radius: 35%;
+  background: #a855f7;
+  filter: blur(65px);
+  opacity: .45;
+}
+
+.full-player-art > .universal-cover {
+  position: relative;
+
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+
+  border-radius: 28px;
+
+  background:
+    radial-gradient(
+      circle at 50% 40%,
+      rgba(168, 85, 247, .45),
+      transparent 55%
+    ),
+    linear-gradient(145deg, #2b1740, #100a1b);
+
+  border: 1px solid rgba(255, 255, 255, .30);
+
+  box-shadow:
+    0 25px 75px rgba(0, 0, 0, .45),
+    0 0 45px rgba(168, 85, 247, .22),
+    inset 0 1px 2px rgba(255, 255, 255, .35);
+}
+
+.full-player-art .cover-art {
+  width: 75%;
+  height: 75%;
+}
+
+.full-player-art .cover-brand {
+  font-size: 11px;
+  bottom: 18px;
+  letter-spacing: 5px;
+}
+
+/* MUSIQA NOMI */
+
+.full-player-song-info {
+  width: 100%;
+  max-width: 480px;
+  flex-shrink: 0;
+}
+
+.full-player-title {
+  text-align: center;
+  margin-bottom: 27px;
+}
+
+.full-player-title h2 {
+  font-size: clamp(20px, 5vw, 27px);
+  font-weight: 900;
+  line-height: 1.3;
+
+  overflow-wrap: anywhere;
+
+  text-shadow: 0 3px 20px rgba(0, 0, 0, .3);
+}
+
+.full-player-title p {
+  margin-top: 8px;
+  font-size: 14px;
+  color: #c7b2db;
+}
+
+/* MUSIQA VAQTI */
+
+.full-player-progress {
+  width: 100%;
+}
+
+.full-player-range {
+  appearance: none;
+  -webkit-appearance: none;
+
+  width: 100%;
+  height: 6px;
+
+  border: none;
+  outline: none;
+  border-radius: 20px;
+
+  cursor: pointer;
+
+  background: linear-gradient(
+    to right,
+    #d8b4fe 0%,
+    #a855f7 var(--player-progress),
+    rgba(255, 255, 255, .22) var(--player-progress),
+    rgba(255, 255, 255, .22) 100%
+  );
+}
+
+.full-player-range::-webkit-slider-thumb {
+  appearance: none;
+  -webkit-appearance: none;
+
+  width: 17px;
+  height: 17px;
+
+  border-radius: 50%;
+  background: white;
+
+  border: 3px solid #bd78ff;
+
+  box-shadow:
+    0 0 12px rgba(168, 85, 247, .9),
+    0 0 25px rgba(168, 85, 247, .4);
+}
+
+.full-player-range::-moz-range-thumb {
+  width: 13px;
+  height: 13px;
+
+  border-radius: 50%;
+  background: white;
+  border: 3px solid #bd78ff;
+
+  box-shadow: 0 0 15px rgba(168, 85, 247, .7);
+}
+
+.full-player-time {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 11px;
+
+  font-size: 11px;
+  color: #b8a5ca;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+/* OLDINGI / PLAY / KEYINGI */
+
+.full-player-controls {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: clamp(28px, 9vw, 55px);
+
+  margin-top: 30px;
+}
+
+.glass-control-button {
+  width: 58px;
+  height: 58px;
+  border-radius: 50%;
+}
+
+.main-play-button {
+  width: 76px;
+  height: 76px;
+
+  display: grid;
+  place-items: center;
+
+  border-radius: 50%;
+
+  color: white;
+
+  background:
+    linear-gradient(145deg, #c084fc, #792bd0);
+
+  border: 1px solid rgba(255, 255, 255, .4);
+
+  box-shadow:
+    0 0 30px rgba(168, 85, 247, .45),
+    0 12px 35px rgba(0, 0, 0, .3),
+    inset 0 2px 3px rgba(255, 255, 255, .4);
+
+  transition:
+    transform .3s cubic-bezier(.2, 1.5, .4, 1),
+    box-shadow .3s ease;
+}
+
+.main-play-button:active {
+  transform: scale(.86);
+  box-shadow: 0 0 12px rgba(168, 85, 247, .3);
+}
+
+/* PASTKI YOZUV */
+
+.full-player-bottom {
+  display: flex;
+  justify-content: center;
+  margin-top: 30px;
+}
+
+.full-player-bottom span {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+
+  color: rgba(225, 200, 255, .75);
+
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 2px;
+}
+
+/* MINI PLAYER — SHISHA */
+
+.player {
+  background: rgba(39, 25, 55, .65) !important;
+
+  backdrop-filter: blur(30px) saturate(200%) !important;
+  -webkit-backdrop-filter: blur(30px) saturate(200%) !important;
+
+  border: 1px solid rgba(255, 255, 255, .22) !important;
+
+  box-shadow:
+    0 12px 40px rgba(0, 0, 0, .35),
+    inset 0 1px 1px rgba(255, 255, 255, .22) !important;
+
+  transition:
+    transform .35s ease,
+    background .35s ease !important;
+}
+
+.player:active {
+  transform: translateX(-50%) scale(.98);
+}
+
+/* KARTALAR — LIQUID GLASS */
+
+.song,
+.song-grid-card,
+.library-card {
+  backdrop-filter: blur(22px) saturate(160%);
+  -webkit-backdrop-filter: blur(22px) saturate(160%);
+
+  box-shadow:
+    inset 0 1px 1px rgba(255, 255, 255, .08),
+    0 8px 25px rgba(0, 0, 0, .12);
+
+  transition:
+    transform .3s cubic-bezier(.2, 1.3, .4, 1),
+    border-color .3s ease,
+    box-shadow .3s ease;
+}
+
+.song:active,
+.song-grid-card:active,
+.library-card:active {
+  transform: scale(.97);
+  border-color: rgba(190, 140, 255, .45) !important;
+}
+
+/* E'LONLAR */
+
+.announcement-welcome {
+  position: relative;
+  overflow: hidden;
+
+  background:
+    linear-gradient(
+      135deg,
+      rgba(117, 45, 166, .55),
+      rgba(30, 16, 48, .75)
+    ) !important;
+
+  backdrop-filter: blur(30px) saturate(180%);
+  -webkit-backdrop-filter: blur(30px) saturate(180%);
+
+  border: 1px solid rgba(220, 180, 255, .25) !important;
+
+  box-shadow:
+    inset 0 1px 1px rgba(255, 255, 255, .16),
+    0 15px 40px rgba(0, 0, 0, .2);
+}
+
+.announcement-welcome::after {
+  content: "";
+  position: absolute;
+  top: -80%;
+  left: -50%;
+
+  width: 70%;
+  height: 250%;
+
+  transform: rotate(25deg);
+
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, .09),
+    transparent
+  );
+
+  animation: announcementShine 7s ease-in-out infinite;
+  pointer-events: none;
+}
+
+@keyframes announcementShine {
+  0%, 65% {
+    left: -70%;
+  }
+
+  100% {
+    left: 140%;
+  }
+}
+
+/* QIDIRUV */
+
+.search-input {
+  background: rgba(45, 34, 60, .55) !important;
+
+  backdrop-filter: blur(22px);
+  -webkit-backdrop-filter: blur(22px);
+
+  border: 1px solid rgba(255, 255, 255, .17) !important;
+
+  box-shadow: inset 0 1px 1px rgba(255, 255, 255, .1);
+}
+
+/* MODALLAR */
+
+[style*="position: fixed"][style*="inset: 0"] {
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+[style*="maxWidth: 380px"] {
+  border: 1px solid rgba(255, 255, 255, .18);
+  box-shadow:
+    0 20px 70px rgba(0, 0, 0, .4),
+    inset 0 1px 1px rgba(255, 255, 255, .12);
+}
+
+/* LIGHT MODE */
+
+html[data-theme="light"] .full-player {
+  color: #21152e;
+
+  background:
+    radial-gradient(
+      ellipse at 50% 25%,
+      rgba(190, 145, 235, .45),
+      transparent 50%
+    ),
+    linear-gradient(160deg, #f1e5ff, #e9e0f2 70%);
+}
+
+html[data-theme="light"] .full-player-title p,
+html[data-theme="light"] .full-player-time {
+  color: #776386;
+}
+
+html[data-theme="light"] .full-player-heading small {
+  color: #8154a6;
+}
+
+html[data-theme="light"] .full-player-bottom span {
+  color: #8154a6;
+}
+
+html[data-theme="light"] .glass-icon-button,
+html[data-theme="light"] .glass-control-button {
+  color: #572c7c;
+
+  background: rgba(255, 255, 255, .45);
+  border-color: rgba(120, 75, 155, .2);
+
+  box-shadow:
+    inset 0 1px 1px rgba(255, 255, 255, .7),
+    0 8px 25px rgba(70, 30, 100, .1);
+}
+
+html[data-theme="light"] .full-player-art > .universal-cover {
+  box-shadow:
+    0 25px 65px rgba(70, 30, 100, .2),
+    0 0 40px rgba(168, 85, 247, .15);
+}
+
+html[data-theme="light"] .full-player-range {
+  background: linear-gradient(
+    to right,
+    #8b3ed0 0%,
+    #a855f7 var(--player-progress),
+    rgba(90, 50, 110, .18) var(--player-progress),
+    rgba(90, 50, 110, .18) 100%
+  );
+}
+
+html[data-theme="light"] .player {
+  background: rgba(255, 255, 255, .65) !important;
+  border-color: rgba(150, 100, 190, .25) !important;
+}
+
+/* KICHIK EKRANLAR */
+
+@media (max-height: 700px) {
+  .full-player {
+    padding-top: calc(env(safe-area-inset-top, 0px) + 8px);
+    padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 12px);
+  }
+
+  .full-player-content {
+    gap: 15px;
+  }
+
+  .full-player-art {
+    width: min(57vw, 245px);
+  }
+
+  .full-player-title {
+    margin-bottom: 16px;
+  }
+
+  .full-player-controls {
+    margin-top: 18px;
+  }
+
+  .full-player-bottom {
+    margin-top: 16px;
+  }
+
+  .main-play-button {
+    width: 66px;
+    height: 66px;
+  }
+
+  .glass-control-button {
+    width: 51px;
+    height: 51px;
+  }
+}
+
+@media (max-width: 360px) {
+  .full-player {
+    padding-left: 17px;
+    padding-right: 17px;
+  }
+
+  .full-player-art {
+    width: min(72vw, 270px);
+  }
+
+  .full-player-controls {
+    gap: 25px;
+  }
+}
+
+/* ANIMATSIYANI KAMAYTIRISH */
+
+@media (prefers-reduced-motion: reduce) {
+  .full-player,
+  .full-player-art,
+  .full-player-glow,
+  .announcement-welcome::after {
+    animation: none !important;
+  }
+
+  .glass-icon-button,
+  .glass-control-button,
+  .main-play-button,
+  .song,
+  .song-grid-card {
+    transition: none !important;
+  }
+}
