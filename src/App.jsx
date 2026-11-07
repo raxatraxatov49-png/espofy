@@ -77,7 +77,8 @@ const translations = {
     approved: "Tasdiqlangan",
     noSubmissions: "Siz hali musiqa yubormagansiz.",
     chooseAudio: "Audio fayl tanlanmagan",
-    chooseImage: "Rasm tanlash"
+    chooseImage: "Rasm tanlash",
+    nowPlaying: "HOZIR IJRO ETILMOQDA"
   },
 
   ru: {
@@ -144,7 +145,8 @@ const translations = {
     approved: "Одобрено",
     noSubmissions: "Вы ещё не отправляли музыку.",
     chooseAudio: "Аудиофайл не выбран",
-    chooseImage: "Выбрать изображение"
+    chooseImage: "Выбрать изображение",
+    nowPlaying: "СЕЙЧАС ИГРАЕТ"
   }
 };
 
@@ -153,6 +155,15 @@ function safeFileName(name) {
     .normalize("NFKD")
     .replace(/[^a-zA-Z0-9._-]/g, "_")
     .slice(-100);
+}
+
+function formatTime(value) {
+  if (!Number.isFinite(value) || value < 0) return "0:00";
+
+  const minutes = Math.floor(value / 60);
+  const seconds = Math.floor(value % 60);
+
+  return `${minutes}:${String(seconds).padStart(2, "0")}`;
 }
 
 function SongCover() {
@@ -166,23 +177,11 @@ function SongCover() {
         xmlns="http://www.w3.org/2000/svg"
         aria-hidden="true"
       >
-        <circle
-          cx="50"
-          cy="50"
-          r="39"
-          fill="none"
-          stroke="rgba(190,140,255,0.13)"
-          strokeWidth="1"
-        />
+        <circle cx="50" cy="50" r="39" fill="none"
+          stroke="rgba(190,140,255,0.13)" strokeWidth="1" />
 
-        <circle
-          cx="50"
-          cy="50"
-          r="31"
-          fill="none"
-          stroke="rgba(190,140,255,0.10)"
-          strokeWidth="1"
-        />
+        <circle cx="50" cy="50" r="31" fill="none"
+          stroke="rgba(190,140,255,0.10)" strokeWidth="1" />
 
         <path
           d="M12 52 H29 L37 38 L47 66 L57 28 L67 56 L73 45 L80 52 H89"
@@ -214,13 +213,17 @@ export default function App() {
   const [playlists, setPlaylists] = useState([]);
   const [playlistSongs, setPlaylistSongs] = useState([]);
 
-  // E'LONLAR UCHUN STATE
   const [announcements, setAnnouncements] = useState([]);
   const [announcementIndex, setAnnouncementIndex] = useState(0);
 
   const [userId, setUserId] = useState(null);
   const [playing, setPlaying] = useState(false);
   const [currentSong, setCurrentSong] = useState(null);
+
+  const [currentTime, setCurrentTime] = useState(0);
+  const [duration, setDuration] = useState(0);
+  const [showFullPlayer, setShowFullPlayer] = useState(false);
+
   const [tab, setTab] = useState("home");
   const [search, setSearch] = useState("");
   const [showAdmin, setShowAdmin] = useState(false);
@@ -267,6 +270,7 @@ export default function App() {
     document.documentElement.dataset.theme = theme;
   }, [theme]);
 
+  // FOYDALANUVCHINI ANIQLASH
   useEffect(() => {
     let cancelled = false;
 
@@ -330,16 +334,10 @@ export default function App() {
           .eq("id", user.id);
 
         if (updateError) {
-          console.error(
-            "Foydalanuvchini yangilash:",
-            updateError.message
-          );
+          console.error("Foydalanuvchini yangilash:", updateError.message);
         }
       } else if (insertError) {
-        console.error(
-          "Foydalanuvchini saqlash:",
-          insertError.message
-        );
+        console.error("Foydalanuvchini saqlash:", insertError.message);
       }
     }
 
@@ -369,7 +367,7 @@ export default function App() {
     setSongs(data || []);
   }
 
-  // E'LONLARNI SUPABASE'DAN YUKLASH
+  // E'LONLARNI YUKLASH
   async function loadAnnouncements() {
     const { data, error } = await supabase
       .from("announcements")
@@ -385,18 +383,14 @@ export default function App() {
     setAnnouncements(data || []);
   }
 
-  // ILOVA OCHILGANDA VA HAR 15 SONIYADA E'LONLARNI YANGILASH
   useEffect(() => {
     loadAnnouncements();
 
-    const refreshInterval = setInterval(() => {
-      loadAnnouncements();
-    }, 15000);
+    const refreshInterval = setInterval(loadAnnouncements, 15000);
 
     return () => clearInterval(refreshInterval);
   }, []);
 
-  // E'LONLARNI HAR 5 SONIYADA ALMASHTIRISH
   useEffect(() => {
     if (announcements.length <= 1) {
       setAnnouncementIndex(0);
@@ -404,15 +398,12 @@ export default function App() {
     }
 
     const rotationInterval = setInterval(() => {
-      setAnnouncementIndex(prev =>
-        (prev + 1) % announcements.length
-      );
+      setAnnouncementIndex(prev => (prev + 1) % announcements.length);
     }, 5000);
 
     return () => clearInterval(rotationInterval);
   }, [announcements.length]);
 
-  // YANGI E'LON KELGANDA BIRINCHISIDAN BOSHLASH
   useEffect(() => {
     setAnnouncementIndex(0);
   }, [announcements]);
@@ -441,6 +432,7 @@ export default function App() {
     setMySubmissions(data || []);
   }
 
+  // MUSIQA YUBORISH
   async function submitSong() {
     if (!uploadTitle.trim() || !uploadArtist.trim() || !uploadAudio) {
       alert(t.fillFields);
@@ -551,6 +543,7 @@ export default function App() {
     }
   }
 
+  // PLAYLISTLAR
   async function loadPlaylists() {
     const { data, error } = await supabase
       .from("playlists")
@@ -571,8 +564,7 @@ export default function App() {
     const counts = {};
 
     (relations || []).forEach(item => {
-      counts[item.playlist_id] =
-        (counts[item.playlist_id] || 0) + 1;
+      counts[item.playlist_id] = (counts[item.playlist_id] || 0) + 1;
     });
 
     setPlaylists(list.map(p => ({
@@ -596,10 +588,7 @@ export default function App() {
 
     const { error } = await supabase
       .from("playlists")
-      .insert({
-        name,
-        user_id: userId
-      });
+      .insert({ name, user_id: userId });
 
     if (error) {
       alert(t.error + error.message);
@@ -642,9 +631,7 @@ export default function App() {
       });
 
     if (error) {
-      alert(error.code === "23505"
-        ? t.duplicate
-        : t.error + error.message);
+      alert(error.code === "23505" ? t.duplicate : t.error + error.message);
       return;
     }
 
@@ -684,10 +671,8 @@ export default function App() {
     }
 
     const extension = file.name.split(".").pop().toLowerCase();
-
     const filePath =
-      `${userId}/covers/${Date.now()}-${Math.random()
-        .toString(36).slice(2)}.${extension}`;
+      `${userId}/covers/${Date.now()}-${Math.random().toString(36).slice(2)}.${extension}`;
 
     const { error: uploadError } = await supabase.storage
       .from("music")
@@ -722,9 +707,7 @@ export default function App() {
   }
 
   async function deletePlaylist(playlist) {
-    if (!window.confirm(
-      `"${playlist.name}" ${t.deleteConfirm}`
-    )) return;
+    if (!window.confirm(`"${playlist.name}" ${t.deleteConfirm}`)) return;
 
     const { error } = await supabase
       .from("playlists")
@@ -740,6 +723,7 @@ export default function App() {
     await loadPlaylists();
   }
 
+  // MUSIQA PLAYERI
   function playSong(song) {
     if (!song?.audio_url) {
       alert(t.audioMissing);
@@ -747,14 +731,15 @@ export default function App() {
     }
 
     if (currentSong?.id === song.id && audioRef.current) {
-      if (playing) {
-        audioRef.current.pause();
-      } else {
+      if (audioRef.current.paused) {
         if (audioRef.current.ended) {
+          audioRef.current.currentTime = 0;
           countedPlayRef.current = null;
         }
 
         audioRef.current.play().catch(() => setPlaying(false));
+      } else {
+        audioRef.current.pause();
       }
 
       return;
@@ -762,11 +747,16 @@ export default function App() {
 
     countedPlayRef.current = null;
     setCurrentSong(song);
+    setCurrentTime(0);
+    setDuration(0);
     setPlaying(true);
 
-    if (audioRef.current) {
-      audioRef.current.src = song.audio_url;
-      audioRef.current.play().catch(() => setPlaying(false));
+    const audio = audioRef.current;
+
+    if (audio) {
+      audio.src = song.audio_url;
+      audio.load();
+      audio.play().catch(() => setPlaying(false));
     }
   }
 
@@ -789,14 +779,57 @@ export default function App() {
     if (!songs.length || !currentSong) return;
 
     const index = songs.findIndex(s => s.id === currentSong.id);
-    playSong(songs[(index + 1) % songs.length]);
+    const nextIndex = index < 0 ? 0 : (index + 1) % songs.length;
+
+    playSong(songs[nextIndex]);
   }
 
   function previousSong() {
     if (!songs.length || !currentSong) return;
 
+    // Agar musiqa 3 sekunddan ko‘p eshitilgan bo‘lsa,
+    // oldingi musiqaga emas, shu musiqaning boshiga qaytadi.
+    if (audioRef.current && audioRef.current.currentTime > 3) {
+      audioRef.current.currentTime = 0;
+      return;
+    }
+
     const index = songs.findIndex(s => s.id === currentSong.id);
-    playSong(songs[(index - 1 + songs.length) % songs.length]);
+    const previousIndex = index < 0
+      ? 0
+      : (index - 1 + songs.length) % songs.length;
+
+    playSong(songs[previousIndex]);
+  }
+
+  function togglePlay() {
+    const audio = audioRef.current;
+    if (!audio || !currentSong) return;
+
+    if (audio.paused) {
+      if (audio.ended) {
+        audio.currentTime = 0;
+        countedPlayRef.current = null;
+      }
+
+      audio.play().catch(() => setPlaying(false));
+    } else {
+      audio.pause();
+    }
+  }
+
+  function seekAudio(event) {
+    const value = Number(event.target.value);
+
+    if (!audioRef.current || !Number.isFinite(value)) return;
+
+    audioRef.current.currentTime = value;
+    setCurrentTime(value);
+  }
+
+  function handleAudioEnded() {
+    countedPlayRef.current = null;
+    nextSong();
   }
 
   const filteredSongs = songs.filter(song =>
@@ -809,14 +842,16 @@ export default function App() {
     return <Admin onClose={() => setShowAdmin(false)} />;
   }
 
+  const progress = duration > 0
+    ? Math.min((currentTime / duration) * 100, 100)
+    : 0;
+
   return (
     <div className={`app theme-${theme}`}>
       <audio
         ref={audioRef}
-        onEnded={() => {
-          countedPlayRef.current = null;
-          nextSong();
-        }}
+        preload="metadata"
+        onEnded={handleAudioEnded}
         onPlay={() => {
           setPlaying(true);
 
@@ -825,6 +860,21 @@ export default function App() {
           }
         }}
         onPause={() => setPlaying(false)}
+        onTimeUpdate={() => {
+          if (audioRef.current) {
+            setCurrentTime(audioRef.current.currentTime || 0);
+          }
+        }}
+        onLoadedMetadata={() => {
+          if (audioRef.current) {
+            setDuration(audioRef.current.duration || 0);
+          }
+        }}
+        onDurationChange={() => {
+          if (audioRef.current) {
+            setDuration(audioRef.current.duration || 0);
+          }
+        }}
       />
 
       <header className="header">
@@ -856,6 +906,7 @@ export default function App() {
         </div>
       </header>
 
+      {/* SOZLAMALAR */}
       {showSettings && (
         <div
           style={modalStyle}
@@ -879,10 +930,7 @@ export default function App() {
             </div>
 
             <p style={{ marginBottom: 14 }}>
-              <Globe
-                size={18}
-                style={{ verticalAlign: "middle" }}
-              />{" "}
+              <Globe size={18} style={{ verticalAlign: "middle" }} />{" "}
               {t.language}
             </p>
 
@@ -902,36 +950,20 @@ export default function App() {
                     : "1px solid #40364f"
                 }}
               >
-                <span>
-                  {item.flag} {item.name}
-                </span>
-
-                {language === item.id && (
-                  <Check color="#a78bfa" />
-                )}
+                <span>{item.flag} {item.name}</span>
+                {language === item.id && <Check color="#a78bfa" />}
               </button>
             ))}
 
             <div style={{ marginTop: 22 }}>
               <p style={{ marginBottom: 14 }}>
-                <Sun
-                  size={18}
-                  style={{ verticalAlign: "middle" }}
-                />{" "}
+                <Sun size={18} style={{ verticalAlign: "middle" }} />{" "}
                 {t.theme}
               </p>
 
               {[
-                {
-                  id: "dark",
-                  icon: <Moon size={19} />,
-                  name: t.dark
-                },
-                {
-                  id: "light",
-                  icon: <Sun size={19} />,
-                  name: t.light
-                }
+                { id: "dark", icon: <Moon size={19} />, name: t.dark },
+                { id: "light", icon: <Sun size={19} />, name: t.light }
               ].map(item => (
                 <button
                   key={item.id}
@@ -954,9 +986,7 @@ export default function App() {
                     {item.name}
                   </span>
 
-                  {theme === item.id && (
-                    <Check color="#8b5cf6" />
-                  )}
+                  {theme === item.id && <Check color="#8b5cf6" />}
                 </button>
               ))}
             </div>
@@ -964,20 +994,17 @@ export default function App() {
         </div>
       )}
 
-      {/* LIQUID ANIMATSIYALI SAHIFA */}
+      {/* ASOSIY SAHIFALAR */}
       <main
         key={`${tab}-${selectedPlaylist?.id || "list"}`}
         className="page-liquid"
       >
         {tab === "home" && (
           <>
-            {/* E'LONLAR CHIQADIGAN JOY */}
             <section className="welcome announcement-welcome">
               {announcements.length > 0 ? (
                 <>
-                  <p className="small">
-                    ESPOFIY • E'LON
-                  </p>
+                  <p className="small">ESPOFIY • E'LON</p>
 
                   <h1 key={announcements[announcementIndex]?.id}>
                     {announcements[announcementIndex]?.title}
@@ -992,9 +1019,7 @@ export default function App() {
                       {announcements.map((item, index) => (
                         <span
                           key={item.id}
-                          className={
-                            index === announcementIndex ? "active" : ""
-                          }
+                          className={index === announcementIndex ? "active" : ""}
                         />
                       ))}
                     </div>
@@ -1009,16 +1034,11 @@ export default function App() {
               )}
             </section>
 
-            <h2 className="section-title">
-              {t.newSongs}
-            </h2>
+            <h2 className="section-title">{t.newSongs}</h2>
 
             <div className="songs songs-grid">
               {songs.map(song => (
-                <div
-                  className="song song-grid-card"
-                  key={song.id}
-                >
+                <div className="song song-grid-card" key={song.id}>
                   <SongCover />
 
                   <div className="song-info">
@@ -1047,9 +1067,7 @@ export default function App() {
 
         {tab === "search" && (
           <>
-            <h2 className="section-title">
-              {t.searchTitle}
-            </h2>
+            <h2 className="section-title">{t.searchTitle}</h2>
 
             <input
               className="search-input"
@@ -1088,21 +1106,14 @@ export default function App() {
 
         {tab === "upload" && (
           <>
-            <h2 className="section-title">
-              {t.uploadTitle}
-            </h2>
+            <h2 className="section-title">{t.uploadTitle}</h2>
 
-            <p
-              className="small"
-              style={{ marginBottom: 20, lineHeight: 1.6 }}
-            >
+            <p className="small" style={{ marginBottom: 20, lineHeight: 1.6 }}>
               {t.uploadSubtitle}
             </p>
 
             <div style={uploadCardStyle}>
-              <label style={formLabelStyle}>
-                {t.songTitle}
-              </label>
+              <label style={formLabelStyle}>{t.songTitle}</label>
 
               <input
                 value={uploadTitle}
@@ -1111,9 +1122,7 @@ export default function App() {
                 style={inputStyle}
               />
 
-              <label style={formLabelStyle}>
-                {t.artistName}
-              </label>
+              <label style={formLabelStyle}>{t.artistName}</label>
 
               <input
                 value={uploadArtist}
@@ -1122,9 +1131,7 @@ export default function App() {
                 style={inputStyle}
               />
 
-              <label style={formLabelStyle}>
-                {t.genreName}
-              </label>
+              <label style={formLabelStyle}>{t.genreName}</label>
 
               <input
                 value={uploadGenre}
@@ -1133,41 +1140,30 @@ export default function App() {
                 style={inputStyle}
               />
 
-              <label style={formLabelStyle}>
-                {t.audioFile}
-              </label>
+              <label style={formLabelStyle}>{t.audioFile}</label>
 
               <label style={fileButtonStyle}>
                 <Music size={20} />
 
-                <span style={{
-                  overflow: "hidden",
-                  textOverflow: "ellipsis"
-                }}>
+                <span style={{ overflow: "hidden", textOverflow: "ellipsis" }}>
                   {uploadAudio?.name || t.chooseAudio}
                 </span>
 
                 <input
                   id="submission-audio"
                   type="file"
+                  accept="audio/*"
                   style={{ display: "none" }}
-                  onChange={e =>
-                    setUploadAudio(e.target.files?.[0] || null)
-                  }
+                  onChange={e => setUploadAudio(e.target.files?.[0] || null)}
                 />
               </label>
 
-              <label style={formLabelStyle}>
-                {t.coverFile}
-              </label>
+              <label style={formLabelStyle}>{t.coverFile}</label>
 
               <label style={fileButtonStyle}>
                 <ImagePlus size={20} />
 
-                <span style={{
-                  overflow: "hidden",
-                  textOverflow: "ellipsis"
-                }}>
+                <span style={{ overflow: "hidden", textOverflow: "ellipsis" }}>
                   {uploadCover?.name || t.chooseImage}
                 </span>
 
@@ -1176,9 +1172,7 @@ export default function App() {
                   type="file"
                   accept="image/*"
                   style={{ display: "none" }}
-                  onChange={e =>
-                    setUploadCover(e.target.files?.[0] || null)
-                  }
+                  onChange={e => setUploadCover(e.target.files?.[0] || null)}
                 />
               </label>
 
@@ -1199,10 +1193,7 @@ export default function App() {
               <button
                 onClick={submitSong}
                 disabled={uploading}
-                style={{
-                  ...mainButtonStyle,
-                  opacity: uploading ? 0.6 : 1
-                }}
+                style={{ ...mainButtonStyle, opacity: uploading ? 0.6 : 1 }}
               >
                 {uploading
                   ? <><Clock size={18} /> {t.sending}</>
@@ -1210,10 +1201,7 @@ export default function App() {
               </button>
             </div>
 
-            <h2
-              className="section-title"
-              style={{ marginTop: 28 }}
-            >
+            <h2 className="section-title" style={{ marginTop: 28 }}>
               {t.mySubmissions}
             </h2>
 
@@ -1262,10 +1250,7 @@ export default function App() {
                   </button>
 
                   <div style={{ flex: 1 }}>
-                    <h2 style={{ margin: 0 }}>
-                      {selectedPlaylist.name}
-                    </h2>
-
+                    <h2 style={{ margin: 0 }}>{selectedPlaylist.name}</h2>
                     <p className="small">
                       {playlistSongs.length} {t.songs}
                     </p>
@@ -1351,14 +1336,10 @@ export default function App() {
 
                       <select
                         value={selectedSongId}
-                        onChange={e =>
-                          setSelectedSongId(e.target.value)
-                        }
+                        onChange={e => setSelectedSongId(e.target.value)}
                         style={inputStyle}
                       >
-                        <option value="">
-                          {t.chooseSong}
-                        </option>
+                        <option value="">{t.chooseSong}</option>
 
                         {songs.map(song => (
                           <option key={song.id} value={song.id}>
@@ -1380,9 +1361,7 @@ export default function App() {
             ) : (
               <>
                 <div style={headerStyle}>
-                  <h2 className="section-title">
-                    {t.myPlaylists}
-                  </h2>
+                  <h2 className="section-title">{t.myPlaylists}</h2>
 
                   <button
                     onClick={() => setShowCreate(true)}
@@ -1408,9 +1387,7 @@ export default function App() {
 
                       <div className="song-info">
                         <b>{playlist.name}</b>
-                        <span>
-                          {playlist.songCount} {t.songs}
-                        </span>
+                        <span>{playlist.songCount} {t.songs}</span>
                       </div>
 
                       <button
@@ -1479,9 +1456,13 @@ export default function App() {
         )}
       </main>
 
-      {/* MINI PLAYER */}
+      {/* MINI PLAYER — BOSILGANDA KATTA PLAYER OCHILADI */}
       {currentSong && (
-        <div className="player">
+        <div
+          className="player"
+          onClick={() => setShowFullPlayer(true)}
+          style={{ cursor: "pointer" }}
+        >
           <div className="player-song">
             <div className="mini-cover">
               <SongCover />
@@ -1494,24 +1475,143 @@ export default function App() {
           </div>
 
           <div className="controls">
-            <button onClick={previousSong}>
+            <button
+              onClick={e => {
+                e.stopPropagation();
+                previousSong();
+              }}
+              aria-label="Previous song"
+            >
               <SkipBack size={19} />
             </button>
 
-            <button onClick={() => playSong(currentSong)}>
+            <button
+              onClick={e => {
+                e.stopPropagation();
+                togglePlay();
+              }}
+              aria-label="Play or pause"
+            >
               {playing
                 ? <Pause size={22} />
                 : <Play size={22} fill="white" />}
             </button>
 
-            <button onClick={nextSong}>
+            <button
+              onClick={e => {
+                e.stopPropagation();
+                nextSong();
+              }}
+              aria-label="Next song"
+            >
               <SkipForward size={19} />
             </button>
           </div>
         </div>
       )}
 
-      {/* LIQUID BOTTOM NAVIGATION */}
+      {/* TO‘LIQ EKRANLI LIQUID GLASS PLAYER */}
+      {showFullPlayer && currentSong && (
+        <div className="full-player">
+          <div className="full-player-glow full-player-glow-one" />
+          <div className="full-player-glow full-player-glow-two" />
+
+          <div className="full-player-top">
+            <button
+              className="glass-icon-button"
+              onClick={() => setShowFullPlayer(false)}
+              aria-label="Close player"
+            >
+              <ArrowLeft size={23} />
+            </button>
+
+            <div className="full-player-heading">
+              <span>ESPOFIY</span>
+              <small>{t.nowPlaying}</small>
+            </div>
+
+            <button
+              className="glass-icon-button"
+              onClick={() => setShowFullPlayer(false)}
+              aria-label="Close"
+            >
+              <X size={21} />
+            </button>
+          </div>
+
+          <div className="full-player-content">
+            <div className="full-player-art">
+              <div className="full-player-art-glow" />
+              <SongCover />
+            </div>
+
+            <div className="full-player-song-info">
+              <div className="full-player-title">
+                <h2>{currentSong.title}</h2>
+                <p>{currentSong.artist}</p>
+              </div>
+
+              <div className="full-player-progress">
+                <input
+                  className="full-player-range"
+                  type="range"
+                  min="0"
+                  max={duration || 0}
+                  step="0.1"
+                  value={Math.min(currentTime, duration || 0)}
+                  onChange={seekAudio}
+                  style={{
+                    "--player-progress": `${progress}%`
+                  }}
+                  aria-label="Musiqa vaqtini o‘zgartirish"
+                />
+
+                <div className="full-player-time">
+                  <span>{formatTime(currentTime)}</span>
+                  <span>{formatTime(duration)}</span>
+                </div>
+              </div>
+
+              <div className="full-player-controls">
+                <button
+                  className="glass-control-button"
+                  onClick={previousSong}
+                  aria-label="Previous song"
+                >
+                  <SkipBack size={29} fill="currentColor" />
+                </button>
+
+                <button
+                  className="main-play-button"
+                  onClick={togglePlay}
+                  aria-label={playing ? "Pause" : "Play"}
+                >
+                  {playing
+                    ? <Pause size={31} fill="currentColor" />
+                    : <Play size={31} fill="currentColor" />}
+                </button>
+
+                <button
+                  className="glass-control-button"
+                  onClick={nextSong}
+                  aria-label="Next song"
+                >
+                  <SkipForward size={29} fill="currentColor" />
+                </button>
+              </div>
+
+              <div className="full-player-bottom">
+                <span>
+                  <Music2 size={16} />
+                  {t.nowPlaying}
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* PASTKI LIQUID MENYU */}
       <nav className="bottom-nav">
         <button
           onClick={() => {
