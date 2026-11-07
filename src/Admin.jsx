@@ -1,10 +1,9 @@
-
 import React, { useEffect, useState } from "react";
 import {
   ArrowLeft, Music, Trash2, Upload, LogOut,
   RefreshCw, Headphones, ListMusic, ChevronRight,
   TrendingUp, Play, Check, X, Pencil, Save, Activity,
-  Megaphone, Eye, EyeOff
+  Megaphone, Eye, EyeOff, Users
 } from "lucide-react";
 import { supabase } from "./supabase";
 
@@ -50,6 +49,14 @@ const buttonStyle = {
   gap: 7
 };
 
+const pageStyle = {
+  minHeight: "100vh",
+  background: "#100e16",
+  color: "white",
+  fontFamily: "Arial, sans-serif",
+  paddingBottom: 40
+};
+
 function getStoragePath(url) {
   if (!url) return null;
 
@@ -58,7 +65,11 @@ function getStoragePath(url) {
 
   if (index === -1) return null;
 
-  return decodeURIComponent(url.substring(index + marker.length));
+  try {
+    return decodeURIComponent(url.substring(index + marker.length));
+  } catch {
+    return url.substring(index + marker.length);
+  }
 }
 
 function formatDate(date) {
@@ -101,6 +112,10 @@ export default function Admin() {
   const [editingAnnouncement, setEditingAnnouncement] = useState(null);
   const [announcementSaving, setAnnouncementSaving] = useState(false);
 
+  // FOYDALANUVCHILAR SONI
+  const [usersCount, setUsersCount] = useState(0);
+  const [usersCountError, setUsersCountError] = useState("");
+
   const [tab, setTab] = useState("dashboard");
   const [selectedPlaylist, setSelectedPlaylist] = useState(null);
   const [selectedPlaylistSongs, setSelectedPlaylistSongs] = useState([]);
@@ -129,16 +144,18 @@ export default function Admin() {
   useEffect(() => {
     checkSession();
 
-    const { data } = supabase.auth.onAuthStateChange((_event, newSession) => {
-      setSession(newSession);
+    const { data } = supabase.auth.onAuthStateChange(
+      (_event, newSession) => {
+        setSession(newSession);
 
-      if (newSession) {
-        verifyAdmin(newSession);
-      } else {
-        setIsAdmin(false);
-        setChecking(false);
+        if (newSession) {
+          verifyAdmin(newSession);
+        } else {
+          setIsAdmin(false);
+          setChecking(false);
+        }
       }
-    });
+    );
 
     return () => data.subscription.unsubscribe();
   }, []);
@@ -234,12 +251,32 @@ export default function Admin() {
         songsResult,
         playlistsResult,
         playlistSongsResult,
-        announcementsResult
+        announcementsResult,
+        usersResult
       ] = await Promise.all([
-        supabase.from("songs").select("*").order("created_at", { ascending: false }),
-        supabase.from("playlists").select("*").order("created_at", { ascending: false }),
-        supabase.from("playlist_songs").select("playlist_id,song_id"),
-        supabase.from("announcements").select("*").order("created_at", { ascending: false })
+        supabase
+          .from("songs")
+          .select("*")
+          .order("created_at", { ascending: false }),
+
+        supabase
+          .from("playlists")
+          .select("*")
+          .order("created_at", { ascending: false }),
+
+        supabase
+          .from("playlist_songs")
+          .select("playlist_id,song_id"),
+
+        supabase
+          .from("announcements")
+          .select("*")
+          .order("created_at", { ascending: false }),
+
+        // app_users jadvalidagi jami foydalanuvchilar
+        supabase
+          .from("app_users")
+          .select("id", { count: "exact", head: true })
       ]);
 
       if (songsResult.error) throw songsResult.error;
@@ -251,6 +288,14 @@ export default function Admin() {
       setPlaylists(playlistsResult.data || []);
       setPlaylistSongs(playlistSongsResult.data || []);
       setAnnouncements(announcementsResult.data || []);
+
+      if (usersResult.error) {
+        console.error("Foydalanuvchilarni sanash xatosi:", usersResult.error);
+        setUsersCountError(usersResult.error.message);
+      } else {
+        setUsersCount(usersResult.count || 0);
+        setUsersCountError("");
+      }
     } catch (error) {
       console.error(error);
       setMessage("Ma'lumotlarni yuklashda xatolik: " + error.message);
@@ -260,6 +305,10 @@ export default function Admin() {
   }
 
   async function uploadToStorage(file, folder) {
+    if (!file) {
+      throw new Error("Fayl tanlanmagan!");
+    }
+
     const path = `${folder}/${Date.now()}_${Math.random()
       .toString(36)
       .slice(2)}_${safeName(file.name)}`;
@@ -273,7 +322,13 @@ export default function Admin() {
 
     if (error) throw error;
 
-    const { data } = supabase.storage.from("music").getPublicUrl(path);
+    const { data } = supabase.storage
+      .from("music")
+      .getPublicUrl(path);
+
+    if (!data?.publicUrl) {
+      throw new Error("Fayl manzilini olishda xatolik!");
+    }
 
     return data.publicUrl;
   }
@@ -327,9 +382,10 @@ export default function Admin() {
       if (coverInput) coverInput.value = "";
 
       setMessage("Musiqa muvaffaqiyatli yuklandi!");
+
       await loadData();
     } catch (error) {
-      console.error(error);
+      console.error("Musiqa yuklash xatosi:", error);
       setMessage("Yuklashda xatolik: " + error.message);
     } finally {
       setUploading(false);
@@ -353,18 +409,25 @@ export default function Admin() {
 
     let success = 0;
     let failed = 0;
+    let coverUrl = null;
+
+    try {
+      // Umumiy muqovani faqat bir marta yuklaymiz
+      if (bulkCover) {
+        coverUrl = await uploadToStorage(bulkCover, "covers");
+      }
+    } catch (error) {
+      console.error("Muqova yuklash xatosi:", error);
+      setMessage("Muqova rasmini yuklashda xatolik: " + error.message);
+      setBulkUploading(false);
+      return;
+    }
 
     for (let i = 0; i < bulkFiles.length; i++) {
       const file = bulkFiles[i];
 
       try {
         const audioUrl = await uploadToStorage(file, "audio");
-
-        let coverUrl = null;
-
-        if (bulkCover) {
-          coverUrl = await uploadToStorage(bulkCover, "covers");
-        }
 
         const { error } = await supabase.from("songs").insert({
           title: getTitleFromFile(file.name),
@@ -383,7 +446,9 @@ export default function Admin() {
         failed++;
       }
 
-      setBulkProgress(Math.round(((i + 1) / bulkFiles.length) * 100));
+      setBulkProgress(
+        Math.round(((i + 1) / bulkFiles.length) * 100)
+      );
     }
 
     setBulkUploading(false);
@@ -584,7 +649,9 @@ export default function Admin() {
     }
   }
 
-  const publishedSongs = songs.filter(song => song.is_published === true);
+  const publishedSongs = songs.filter(
+    song => song.is_published === true
+  );
 
   const pendingSongs = songs.filter(
     song => song.is_published === false && song.submitted_by
@@ -596,7 +663,11 @@ export default function Admin() {
   );
 
   const topSongs = [...publishedSongs]
-    .sort((a, b) => (Number(b.play_count) || 0) - (Number(a.play_count) || 0))
+    .sort(
+      (a, b) =>
+        (Number(b.play_count) || 0) -
+        (Number(a.play_count) || 0)
+    )
     .slice(0, 10);
 
   const artistMap = {};
@@ -695,6 +766,7 @@ export default function Admin() {
                   onChange={e => setEditTitle(e.target.value)}
                   placeholder="Musiqa nomi"
                 />
+
                 <input
                   style={inputStyle}
                   value={editArtist}
@@ -707,11 +779,14 @@ export default function Admin() {
                 <div style={{ fontWeight: 700, overflowWrap: "anywhere" }}>
                   {song.title}
                 </div>
+
                 <div style={{ color: "#aaa", fontSize: 13 }}>
                   {song.artist}
                 </div>
+
                 <div style={{ color: "#888", fontSize: 12 }}>
-                  {song.genre || "Janr yo'q"} · {Number(song.play_count) || 0} marta tinglangan
+                  {song.genre || "Janr yo'q"} ·{" "}
+                  {Number(song.play_count) || 0} marta tinglangan
                 </div>
               </>
             )}
@@ -757,7 +832,11 @@ export default function Admin() {
           ) : (
             <button
               type="button"
-              style={{ ...buttonStyle, background: "#373044", color: "white" }}
+              style={{
+                ...buttonStyle,
+                background: "#373044",
+                color: "white"
+              }}
               onClick={() => startEdit(song)}
             >
               <Pencil size={16} /> Tahrirlash
@@ -818,6 +897,7 @@ export default function Admin() {
 
           <form onSubmit={login}>
             <label>Email</label>
+
             <input
               style={inputStyle}
               type="email"
@@ -828,6 +908,7 @@ export default function Admin() {
             />
 
             <label>Parol</label>
+
             <input
               style={inputStyle}
               type="password"
@@ -838,7 +919,9 @@ export default function Admin() {
             />
 
             {message && (
-              <p style={{ color: "#f87171", fontSize: 13 }}>{message}</p>
+              <p style={{ color: "#f87171", fontSize: 13 }}>
+                {message}
+              </p>
             )}
 
             <button
@@ -869,6 +952,7 @@ export default function Admin() {
         >
           <div>
             <h2 style={{ margin: 0 }}>ESPOFIY ADMIN</h2>
+
             <div style={{ color: "#999", fontSize: 12 }}>
               Musiqa boshqaruv paneli
             </div>
@@ -877,7 +961,11 @@ export default function Admin() {
           <div style={{ display: "flex", gap: 8 }}>
             <button
               type="button"
-              style={{ ...buttonStyle, background: "#302b3d", color: "white" }}
+              style={{
+                ...buttonStyle,
+                background: "#302b3d",
+                color: "white"
+              }}
               onClick={loadData}
               disabled={loading}
             >
@@ -962,7 +1050,11 @@ export default function Admin() {
         {tab === "announcements" && (
           <>
             <h3>
-              <Megaphone size={20} style={{ verticalAlign: "middle" }} /> E'lonlarni boshqarish
+              <Megaphone
+                size={20}
+                style={{ verticalAlign: "middle" }}
+              />{" "}
+              E'lonlarni boshqarish
             </h3>
 
             <form
@@ -970,10 +1062,13 @@ export default function Admin() {
               style={{ ...cardStyle, marginBottom: 20 }}
             >
               <h4>
-                {editingAnnouncement ? "E'lonni tahrirlash" : "Yangi e'lon qo'shish"}
+                {editingAnnouncement
+                  ? "E'lonni tahrirlash"
+                  : "Yangi e'lon qo'shish"}
               </h4>
 
               <label>E'lon sarlavhasi</label>
+
               <input
                 style={inputStyle}
                 value={announcementTitle}
@@ -984,6 +1079,7 @@ export default function Admin() {
               />
 
               <label>E'lon matni</label>
+
               <textarea
                 style={{
                   ...inputStyle,
@@ -1004,6 +1100,7 @@ export default function Admin() {
                 disabled={announcementSaving}
               >
                 <Save size={17} />
+
                 {announcementSaving
                   ? "Saqlanmoqda..."
                   : editingAnnouncement
@@ -1136,39 +1233,96 @@ export default function Admin() {
                 gap: 12
               }}
             >
+              {/* YANGI FOYDALANUVCHILAR KARTASI */}
+              <div
+                style={{
+                  ...cardStyle,
+                  border: "1px solid #8b5cf6"
+                }}
+              >
+                <Users color="#a78bfa" size={25} />
+
+                <h2 style={{ fontSize: 28, margin: "12px 0 6px" }}>
+                  {usersCount.toLocaleString("uz-UZ")}
+                </h2>
+
+                <div style={{ color: "#aaa" }}>
+                  Jami foydalanuvchilar
+                </div>
+
+                {usersCountError && (
+                  <div
+                    style={{
+                      color: "#f87171",
+                      fontSize: 11,
+                      marginTop: 8,
+                      overflowWrap: "anywhere"
+                    }}
+                  >
+                    Hisoblashda xatolik. RLS ruxsatini tekshiring.
+                  </div>
+                )}
+              </div>
+
               <div style={cardStyle}>
                 <Headphones color="#a78bfa" />
-                <h2>{totalPlays.toLocaleString()}</h2>
-                <div style={{ color: "#aaa" }}>Jami tinglanishlar</div>
+
+                <h2>{totalPlays.toLocaleString("uz-UZ")}</h2>
+
+                <div style={{ color: "#aaa" }}>
+                  Jami tinglanishlar
+                </div>
               </div>
 
               <div style={cardStyle}>
                 <Music color="#a78bfa" />
+
                 <h2>{publishedSongs.length}</h2>
-                <div style={{ color: "#aaa" }}>Musiqalar</div>
+
+                <div style={{ color: "#aaa" }}>
+                  Musiqalar
+                </div>
               </div>
 
               <div style={cardStyle}>
                 <ListMusic color="#a78bfa" />
+
                 <h2>{playlists.length}</h2>
-                <div style={{ color: "#aaa" }}>Playlistlar</div>
+
+                <div style={{ color: "#aaa" }}>
+                  Playlistlar
+                </div>
               </div>
 
               <div style={cardStyle}>
                 <Activity color="#a78bfa" />
+
                 <h2>{pendingSongs.length}</h2>
-                <div style={{ color: "#aaa" }}>Tekshiruvda</div>
+
+                <div style={{ color: "#aaa" }}>
+                  Tekshiruvda
+                </div>
               </div>
 
               <div style={cardStyle}>
                 <Megaphone color="#a78bfa" />
-                <h2>{announcements.filter(item => item.is_active).length}</h2>
-                <div style={{ color: "#aaa" }}>Faol e'lonlar</div>
+
+                <h2>
+                  {announcements.filter(item => item.is_active).length}
+                </h2>
+
+                <div style={{ color: "#aaa" }}>
+                  Faol e'lonlar
+                </div>
               </div>
             </div>
 
             <h3 style={{ marginTop: 28 }}>
-              <TrendingUp size={19} style={{ verticalAlign: "middle" }} /> TOP 10 musiqa
+              <TrendingUp
+                size={19}
+                style={{ verticalAlign: "middle" }}
+              />{" "}
+              TOP 10 musiqa
             </h3>
 
             {topSongs.length ? (
@@ -1188,23 +1342,33 @@ export default function Admin() {
                   </strong>
 
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontWeight: 700 }}>{song.title}</div>
+                    <div style={{ fontWeight: 700 }}>
+                      {song.title}
+                    </div>
+
                     <div style={{ color: "#aaa", fontSize: 13 }}>
                       {song.artist}
                     </div>
                   </div>
 
                   <div style={{ whiteSpace: "nowrap", color: "#c4b5fd" }}>
-                    <Play size={14} style={{ verticalAlign: "middle" }} />{" "}
+                    <Play
+                      size={14}
+                      style={{ verticalAlign: "middle" }}
+                    />{" "}
                     {Number(song.play_count) || 0}
                   </div>
                 </div>
               ))
             ) : (
-              <p style={{ color: "#999" }}>Hozircha musiqa yo'q.</p>
+              <p style={{ color: "#999" }}>
+                Hozircha musiqa yo'q.
+              </p>
             )}
 
-            <h3 style={{ marginTop: 28 }}>TOP 10 ijrochi</h3>
+            <h3 style={{ marginTop: 28 }}>
+              TOP 10 ijrochi
+            </h3>
 
             {artistStats.length ? (
               artistStats.map((item, index) => (
@@ -1218,22 +1382,29 @@ export default function Admin() {
                     marginBottom: 8
                   }}
                 >
-                  <strong style={{ color: "#a78bfa" }}>{index + 1}.</strong>
+                  <strong style={{ color: "#a78bfa" }}>
+                    {index + 1}.
+                  </strong>
 
                   <div style={{ flex: 1 }}>
-                    <div style={{ fontWeight: 700 }}>{item.name}</div>
+                    <div style={{ fontWeight: 700 }}>
+                      {item.name}
+                    </div>
+
                     <div style={{ color: "#aaa", fontSize: 12 }}>
                       {item.songs} ta musiqa
                     </div>
                   </div>
 
                   <strong style={{ color: "#c4b5fd" }}>
-                    {item.plays.toLocaleString()}
+                    {item.plays.toLocaleString("uz-UZ")}
                   </strong>
                 </div>
               ))
             ) : (
-              <p style={{ color: "#999" }}>Ijrochilar hali yo'q.</p>
+              <p style={{ color: "#999" }}>
+                Ijrochilar hali yo'q.
+              </p>
             )}
           </>
         )}
@@ -1255,7 +1426,9 @@ export default function Admin() {
                   <ArrowLeft size={16} /> Orqaga
                 </button>
 
-                <h3>{selectedPlaylist.name || "Playlist"}</h3>
+                <h3>
+                  {selectedPlaylist.name || "Playlist"}
+                </h3>
 
                 <p style={{ color: "#aaa", fontSize: 13 }}>
                   Egasi: {selectedPlaylist.user_id || "-"}
@@ -1305,6 +1478,7 @@ export default function Admin() {
                         <div style={{ fontWeight: 700 }}>
                           {playlist.name || "Nomsiz playlist"}
                         </div>
+
                         <div style={{ color: "#aaa", fontSize: 12 }}>
                           {count} ta musiqa
                         </div>
@@ -1316,7 +1490,9 @@ export default function Admin() {
                 })}
 
                 {!playlists.length && (
-                  <p style={{ color: "#999" }}>Playlistlar mavjud emas.</p>
+                  <p style={{ color: "#999" }}>
+                    Playlistlar mavjud emas.
+                  </p>
                 )}
               </>
             )}
@@ -1332,6 +1508,7 @@ export default function Admin() {
               style={{ ...cardStyle, marginBottom: 18 }}
             >
               <label>Musiqa nomi</label>
+
               <input
                 style={inputStyle}
                 value={title}
@@ -1341,6 +1518,7 @@ export default function Admin() {
               />
 
               <label>Ijrochi</label>
+
               <input
                 style={inputStyle}
                 value={artist}
@@ -1350,33 +1528,63 @@ export default function Admin() {
               />
 
               <label>Janr</label>
+
               <select
                 style={inputStyle}
                 value={genre}
                 onChange={e => setGenre(e.target.value)}
               >
-                {["Pop", "Rap", "Hip-Hop", "Rock", "Electronic", "R&B", "Other"].map(item => (
-                  <option key={item} value={item}>{item}</option>
+                {[
+                  "Pop",
+                  "Rap",
+                  "Hip-Hop",
+                  "Rock",
+                  "Electronic",
+                  "R&B",
+                  "Other"
+                ].map(item => (
+                  <option key={item} value={item}>
+                    {item}
+                  </option>
                 ))}
               </select>
 
               <label>Audio fayl</label>
+
               <input
                 id="single-audio"
                 type="file"
+                accept="audio/*,.mp3,.m4a,.wav,.aac,.ogg"
                 style={fileInputStyle}
-                onChange={e => setAudioFile(e.target.files?.[0] || null)}
+                onChange={e =>
+                  setAudioFile(e.target.files?.[0] || null)
+                }
                 required
               />
 
+              {audioFile && (
+                <div style={{ color: "#a78bfa", fontSize: 12, marginBottom: 10 }}>
+                  Tanlandi: {audioFile.name}
+                </div>
+              )}
+
               <label>Muqova rasmi (ixtiyoriy)</label>
+
               <input
                 id="single-cover"
                 type="file"
                 accept="image/*"
                 style={fileInputStyle}
-                onChange={e => setCoverFile(e.target.files?.[0] || null)}
+                onChange={e =>
+                  setCoverFile(e.target.files?.[0] || null)
+                }
               />
+
+              {coverFile && (
+                <div style={{ color: "#a78bfa", fontSize: 12, marginBottom: 10 }}>
+                  Tanlandi: {coverFile.name}
+                </div>
+              )}
 
               <button
                 type="submit"
@@ -1384,7 +1592,10 @@ export default function Admin() {
                 disabled={uploading}
               >
                 <Upload size={17} />
-                {uploading ? "Yuklanmoqda..." : "Musiqani yuklash"}
+
+                {uploading
+                  ? "Yuklanmoqda..."
+                  : "Musiqani yuklash"}
               </button>
             </form>
 
@@ -1396,16 +1607,47 @@ export default function Admin() {
               <input
                 id="bulk-audio"
                 type="file"
+                accept="audio/*,.mp3,.m4a,.wav,.aac,.ogg"
                 multiple
                 style={fileInputStyle}
-                onChange={e => setBulkFiles(Array.from(e.target.files || []))}
+                onChange={e =>
+                  setBulkFiles(Array.from(e.target.files || []))
+                }
               />
 
               <div style={{ color: "#aaa", fontSize: 12, marginBottom: 12 }}>
                 Tanlangan fayllar: {bulkFiles.length} ta
               </div>
 
+              {bulkFiles.length > 0 && (
+                <div
+                  style={{
+                    maxHeight: 130,
+                    overflowY: "auto",
+                    background: "#100e16",
+                    padding: 10,
+                    borderRadius: 8,
+                    marginBottom: 12
+                  }}
+                >
+                  {bulkFiles.map((file, index) => (
+                    <div
+                      key={`${file.name}-${index}`}
+                      style={{
+                        color: "#ccc",
+                        fontSize: 12,
+                        padding: "4px 0",
+                        overflowWrap: "anywhere"
+                      }}
+                    >
+                      {index + 1}. {file.name}
+                    </div>
+                  ))}
+                </div>
+              )}
+
               <label>Ijrochi</label>
+
               <input
                 style={inputStyle}
                 value={bulkArtist}
@@ -1414,24 +1656,44 @@ export default function Admin() {
               />
 
               <label>Janr</label>
+
               <select
                 style={inputStyle}
                 value={bulkGenre}
                 onChange={e => setBulkGenre(e.target.value)}
               >
-                {["Pop", "Rap", "Hip-Hop", "Rock", "Electronic", "R&B", "Other"].map(item => (
-                  <option key={item} value={item}>{item}</option>
+                {[
+                  "Pop",
+                  "Rap",
+                  "Hip-Hop",
+                  "Rock",
+                  "Electronic",
+                  "R&B",
+                  "Other"
+                ].map(item => (
+                  <option key={item} value={item}>
+                    {item}
+                  </option>
                 ))}
               </select>
 
               <label>Umumiy muqova rasmi (ixtiyoriy)</label>
+
               <input
                 id="bulk-cover"
                 type="file"
                 accept="image/*"
                 style={fileInputStyle}
-                onChange={e => setBulkCover(e.target.files?.[0] || null)}
+                onChange={e =>
+                  setBulkCover(e.target.files?.[0] || null)
+                }
               />
+
+              {bulkCover && (
+                <div style={{ color: "#a78bfa", fontSize: 12, marginBottom: 10 }}>
+                  Tanlandi: {bulkCover.name}
+                </div>
+              )}
 
               {bulkUploading && (
                 <div style={{ marginBottom: 12 }}>
@@ -1447,7 +1709,8 @@ export default function Admin() {
                       style={{
                         width: `${bulkProgress}%`,
                         height: "100%",
-                        background: "#8b5cf6"
+                        background: "#8b5cf6",
+                        transition: "width 0.2s"
                       }}
                     />
                   </div>
@@ -1465,23 +1728,32 @@ export default function Admin() {
                 disabled={bulkUploading}
               >
                 <Upload size={17} />
-                {bulkUploading ? "Yuklanmoqda..." : "Barchasini yuklash"}
+
+                {bulkUploading
+                  ? "Yuklanmoqda..."
+                  : "Barchasini yuklash"}
               </button>
             </div>
 
-            <h3>Yuklangan musiqalar ({publishedSongs.length})</h3>
+            <h3>
+              Yuklangan musiqalar ({publishedSongs.length})
+            </h3>
 
             {publishedSongs.map(song => renderSong(song))}
 
             {!publishedSongs.length && (
-              <p style={{ color: "#999" }}>Hozircha musiqa yo'q.</p>
+              <p style={{ color: "#999" }}>
+                Hozircha musiqa yo'q.
+              </p>
             )}
           </>
         )}
 
         {tab === "pending" && (
           <>
-            <h3>Tekshiruvdagi musiqalar ({pendingSongs.length})</h3>
+            <h3>
+              Tekshiruvdagi musiqalar ({pendingSongs.length})
+            </h3>
 
             {pendingSongs.length ? (
               pendingSongs.map(song => renderSong(song, true))
@@ -1497,11 +1769,3 @@ export default function Admin() {
     </div>
   );
 }
-
-const pageStyle = {
-  minHeight: "100vh",
-  background: "#100e16",
-  color: "white",
-  fontFamily: "Arial, sans-serif",
-  paddingBottom: 40
-};
