@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from "react";
 import {
   ArrowLeft, Music, Trash2, Upload, LogOut,
@@ -273,10 +274,8 @@ export default function Admin() {
           .select("*")
           .order("created_at", { ascending: false }),
 
-        // app_users jadvalidagi jami foydalanuvchilar
-        supabase
-          .from("app_users")
-          .select("id", { count: "exact", head: true })
+        // FOYDALANUVCHILAR SONINI XAVFSIZ FUNKSIYA ORQALI OLISH
+        supabase.rpc("get_app_users_count")
       ]);
 
       if (songsResult.error) throw songsResult.error;
@@ -290,10 +289,13 @@ export default function Admin() {
       setAnnouncements(announcementsResult.data || []);
 
       if (usersResult.error) {
-        console.error("Foydalanuvchilarni sanash xatosi:", usersResult.error);
+        console.error(
+          "Foydalanuvchilarni sanash xatosi:",
+          usersResult.error
+        );
         setUsersCountError(usersResult.error.message);
       } else {
-        setUsersCount(usersResult.count || 0);
+        setUsersCount(Number(usersResult.data) || 0);
         setUsersCountError("");
       }
     } catch (error) {
@@ -304,6 +306,7 @@ export default function Admin() {
     }
   }
 
+  // STORAGE GA FAYL YUKLASH
   async function uploadToStorage(file, folder) {
     if (!file) {
       throw new Error("Fayl tanlanmagan!");
@@ -333,6 +336,7 @@ export default function Admin() {
     return data.publicUrl;
   }
 
+  // BITTA MUSIQA YUKLASH
   async function uploadSingle(e) {
     e.preventDefault();
 
@@ -392,6 +396,7 @@ export default function Admin() {
     }
   }
 
+  // KO'P MUSIQA YUKLASH
   async function uploadBulk() {
     if (!bulkFiles.length) {
       setMessage("Musiqa fayllarini tanlang!");
@@ -412,7 +417,6 @@ export default function Admin() {
     let coverUrl = null;
 
     try {
-      // Umumiy muqovani faqat bir marta yuklaymiz
       if (bulkCover) {
         coverUrl = await uploadToStorage(bulkCover, "covers");
       }
@@ -1233,7 +1237,6 @@ export default function Admin() {
                 gap: 12
               }}
             >
-              {/* YANGI FOYDALANUVCHILAR KARTASI */}
               <div
                 style={{
                   ...cardStyle,
@@ -1259,7 +1262,7 @@ export default function Admin() {
                       overflowWrap: "anywhere"
                     }}
                   >
-                    Hisoblashda xatolik. RLS ruxsatini tekshiring.
+                    Hisoblashda xatolik: {usersCountError}
                   </div>
                 )}
               </div>
