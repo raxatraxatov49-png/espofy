@@ -1,4 +1,3 @@
-
 import React, { useEffect, useRef, useState } from "react";
 import {
   Home, Search, Library, Play, Pause,
@@ -177,11 +176,23 @@ function SongCover() {
         xmlns="http://www.w3.org/2000/svg"
         aria-hidden="true"
       >
-        <circle cx="50" cy="50" r="39" fill="none"
-          stroke="rgba(190,140,255,0.13)" strokeWidth="1" />
+        <circle
+          cx="50"
+          cy="50"
+          r="39"
+          fill="none"
+          stroke="rgba(190,140,255,0.13)"
+          strokeWidth="1"
+        />
 
-        <circle cx="50" cy="50" r="31" fill="none"
-          stroke="rgba(190,140,255,0.10)" strokeWidth="1" />
+        <circle
+          cx="50"
+          cy="50"
+          r="31"
+          fill="none"
+          stroke="rgba(190,140,255,0.10)"
+          strokeWidth="1"
+        />
 
         <path
           d="M12 52 H29 L37 38 L47 66 L57 28 L67 56 L73 45 L80 52 H89"
@@ -334,10 +345,16 @@ export default function App() {
           .eq("id", user.id);
 
         if (updateError) {
-          console.error("Foydalanuvchini yangilash:", updateError.message);
+          console.error(
+            "Foydalanuvchini yangilash:",
+            updateError.message
+          );
         }
       } else if (insertError) {
-        console.error("Foydalanuvchini saqlash:", insertError.message);
+        console.error(
+          "Foydalanuvchini saqlash:",
+          insertError.message
+        );
       }
     }
 
@@ -386,7 +403,10 @@ export default function App() {
   useEffect(() => {
     loadAnnouncements();
 
-    const refreshInterval = setInterval(loadAnnouncements, 15000);
+    const refreshInterval = setInterval(
+      loadAnnouncements,
+      15000
+    );
 
     return () => clearInterval(refreshInterval);
   }, []);
@@ -398,7 +418,9 @@ export default function App() {
     }
 
     const rotationInterval = setInterval(() => {
-      setAnnouncementIndex(prev => (prev + 1) % announcements.length);
+      setAnnouncementIndex(
+        prev => (prev + 1) % announcements.length
+      );
     }, 5000);
 
     return () => clearInterval(rotationInterval);
@@ -464,6 +486,7 @@ export default function App() {
     setUploading(true);
 
     const folder = `${userId}/submissions`;
+
     const audioPath =
       `${folder}/audio/${Date.now()}-${safeFileName(uploadAudio.name)}`;
 
@@ -520,24 +543,35 @@ export default function App() {
       setUploadAudio(null);
       setUploadCover(null);
 
-      const audioInput = document.getElementById("submission-audio");
-      const coverInput = document.getElementById("submission-cover");
+      const audioInput =
+        document.getElementById("submission-audio");
+
+      const coverInput =
+        document.getElementById("submission-cover");
 
       if (audioInput) audioInput.value = "";
       if (coverInput) coverInput.value = "";
 
       await loadMySubmissions();
+
       alert(t.sentSuccess);
     } catch (error) {
       console.error("Musiqa yuborish:", error);
 
-      await supabase.storage.from("music").remove([audioPath]);
+      await supabase.storage
+        .from("music")
+        .remove([audioPath]);
 
       if (coverPath) {
-        await supabase.storage.from("music").remove([coverPath]);
+        await supabase.storage
+          .from("music")
+          .remove([coverPath]);
       }
 
-      alert(t.sendingError + (error.message || "Noma’lum xatolik"));
+      alert(
+        t.sendingError +
+        (error.message || "Noma’lum xatolik")
+      );
     } finally {
       setUploading(false);
     }
@@ -564,13 +598,16 @@ export default function App() {
     const counts = {};
 
     (relations || []).forEach(item => {
-      counts[item.playlist_id] = (counts[item.playlist_id] || 0) + 1;
+      counts[item.playlist_id] =
+        (counts[item.playlist_id] || 0) + 1;
     });
 
-    setPlaylists(list.map(p => ({
-      ...p,
-      songCount: counts[p.id] || 0
-    })));
+    setPlaylists(
+      list.map(p => ({
+        ...p,
+        songCount: counts[p.id] || 0
+      }))
+    );
   }
 
   async function createPlaylist() {
@@ -588,7 +625,10 @@ export default function App() {
 
     const { error } = await supabase
       .from("playlists")
-      .insert({ name, user_id: userId });
+      .insert({
+        name,
+        user_id: userId
+      });
 
     if (error) {
       alert(t.error + error.message);
@@ -597,6 +637,7 @@ export default function App() {
 
     setNewPlaylistName("");
     setShowCreate(false);
+
     await loadPlaylists();
   }
 
@@ -614,7 +655,10 @@ export default function App() {
     }
 
     const ids = (data || []).map(item => item.song_id);
-    setPlaylistSongs(songs.filter(song => ids.includes(song.id)));
+
+    setPlaylistSongs(
+      songs.filter(song => ids.includes(song.id))
+    );
   }
 
   async function addSongToPlaylist() {
@@ -631,12 +675,18 @@ export default function App() {
       });
 
     if (error) {
-      alert(error.code === "23505" ? t.duplicate : t.error + error.message);
+      alert(
+        error.code === "23505"
+          ? t.duplicate
+          : t.error + error.message
+      );
+
       return;
     }
 
     setShowAddSong(false);
     setSelectedSongId("");
+
     await openPlaylist(selectedPlaylist);
     await loadPlaylists();
   }
@@ -670,7 +720,11 @@ export default function App() {
       return;
     }
 
-    const extension = file.name.split(".").pop().toLowerCase();
+    const extension = file.name
+      .split(".")
+      .pop()
+      .toLowerCase();
+
     const filePath =
       `${userId}/covers/${Date.now()}-${Math.random().toString(36).slice(2)}.${extension}`;
 
@@ -689,7 +743,9 @@ export default function App() {
 
     const { error } = await supabase
       .from("playlists")
-      .update({ cover_url: data.publicUrl })
+      .update({
+        cover_url: data.publicUrl
+      })
       .eq("id", selectedPlaylist.id);
 
     if (error) {
@@ -703,11 +759,18 @@ export default function App() {
     });
 
     await loadPlaylists();
+
     alert(t.updated);
   }
 
   async function deletePlaylist(playlist) {
-    if (!window.confirm(`"${playlist.name}" ${t.deleteConfirm}`)) return;
+    if (
+      !window.confirm(
+        `"${playlist.name}" ${t.deleteConfirm}`
+      )
+    ) {
+      return;
+    }
 
     const { error } = await supabase
       .from("playlists")
@@ -720,6 +783,7 @@ export default function App() {
     }
 
     setSelectedPlaylist(null);
+
     await loadPlaylists();
   }
 
@@ -730,6 +794,9 @@ export default function App() {
       return;
     }
 
+    // MUHIM: QO‘SHIQ BOSILGANDA TO‘LIQ EKRANLI PLAYER OCHILADI
+    setShowFullPlayer(true);
+
     if (currentSong?.id === song.id && audioRef.current) {
       if (audioRef.current.paused) {
         if (audioRef.current.ended) {
@@ -737,7 +804,9 @@ export default function App() {
           countedPlayRef.current = null;
         }
 
-        audioRef.current.play().catch(() => setPlaying(false));
+        audioRef.current.play().catch(() => {
+          setPlaying(false);
+        });
       } else {
         audioRef.current.pause();
       }
@@ -746,6 +815,7 @@ export default function App() {
     }
 
     countedPlayRef.current = null;
+
     setCurrentSong(song);
     setCurrentTime(0);
     setDuration(0);
@@ -756,21 +826,36 @@ export default function App() {
     if (audio) {
       audio.src = song.audio_url;
       audio.load();
-      audio.play().catch(() => setPlaying(false));
+
+      audio.play().catch(() => {
+        setPlaying(false);
+      });
     }
   }
 
   async function countSongPlay(songId) {
-    if (!songId || countedPlayRef.current === songId) return;
+    if (
+      !songId ||
+      countedPlayRef.current === songId
+    ) {
+      return;
+    }
 
     countedPlayRef.current = songId;
 
-    const { error } = await supabase.rpc("increment_song_play", {
-      song_id: songId
-    });
+    const { error } = await supabase.rpc(
+      "increment_song_play",
+      {
+        song_id: songId
+      }
+    );
 
     if (error) {
-      console.error("Tinglashni hisoblash:", error.message);
+      console.error(
+        "Tinglashni hisoblash:",
+        error.message
+      );
+
       countedPlayRef.current = null;
     }
   }
@@ -778,8 +863,14 @@ export default function App() {
   function nextSong() {
     if (!songs.length || !currentSong) return;
 
-    const index = songs.findIndex(s => s.id === currentSong.id);
-    const nextIndex = index < 0 ? 0 : (index + 1) % songs.length;
+    const index = songs.findIndex(
+      s => s.id === currentSong.id
+    );
+
+    const nextIndex =
+      index < 0
+        ? 0
+        : (index + 1) % songs.length;
 
     playSong(songs[nextIndex]);
   }
@@ -787,23 +878,29 @@ export default function App() {
   function previousSong() {
     if (!songs.length || !currentSong) return;
 
-    // Agar musiqa 3 sekunddan ko‘p eshitilgan bo‘lsa,
-    // oldingi musiqaga emas, shu musiqaning boshiga qaytadi.
-    if (audioRef.current && audioRef.current.currentTime > 3) {
+    if (
+      audioRef.current &&
+      audioRef.current.currentTime > 3
+    ) {
       audioRef.current.currentTime = 0;
       return;
     }
 
-    const index = songs.findIndex(s => s.id === currentSong.id);
-    const previousIndex = index < 0
-      ? 0
-      : (index - 1 + songs.length) % songs.length;
+    const index = songs.findIndex(
+      s => s.id === currentSong.id
+    );
+
+    const previousIndex =
+      index < 0
+        ? 0
+        : (index - 1 + songs.length) % songs.length;
 
     playSong(songs[previousIndex]);
   }
 
   function togglePlay() {
     const audio = audioRef.current;
+
     if (!audio || !currentSong) return;
 
     if (audio.paused) {
@@ -812,7 +909,9 @@ export default function App() {
         countedPlayRef.current = null;
       }
 
-      audio.play().catch(() => setPlaying(false));
+      audio.play().catch(() => {
+        setPlaying(false);
+      });
     } else {
       audio.pause();
     }
@@ -821,7 +920,12 @@ export default function App() {
   function seekAudio(event) {
     const value = Number(event.target.value);
 
-    if (!audioRef.current || !Number.isFinite(value)) return;
+    if (
+      !audioRef.current ||
+      !Number.isFinite(value)
+    ) {
+      return;
+    }
 
     audioRef.current.currentTime = value;
     setCurrentTime(value);
@@ -839,7 +943,9 @@ export default function App() {
   );
 
   if (showAdmin) {
-    return <Admin onClose={() => setShowAdmin(false)} />;
+    return (
+      <Admin onClose={() => setShowAdmin(false)} />
+    );
   }
 
   const progress = duration > 0
@@ -862,21 +968,28 @@ export default function App() {
         onPause={() => setPlaying(false)}
         onTimeUpdate={() => {
           if (audioRef.current) {
-            setCurrentTime(audioRef.current.currentTime || 0);
+            setCurrentTime(
+              audioRef.current.currentTime || 0
+            );
           }
         }}
         onLoadedMetadata={() => {
           if (audioRef.current) {
-            setDuration(audioRef.current.duration || 0);
+            setDuration(
+              audioRef.current.duration || 0
+            );
           }
         }}
         onDurationChange={() => {
           if (audioRef.current) {
-            setDuration(audioRef.current.duration || 0);
+            setDuration(
+              audioRef.current.duration || 0
+            );
           }
         }}
       />
 
+      {/* HEADER */}
       <header className="header">
         <div className="brand">
           <div className="logo">
@@ -930,63 +1043,108 @@ export default function App() {
             </div>
 
             <p style={{ marginBottom: 14 }}>
-              <Globe size={18} style={{ verticalAlign: "middle" }} />{" "}
+              <Globe
+                size={18}
+                style={{ verticalAlign: "middle" }}
+              />{" "}
               {t.language}
             </p>
 
             {[
-              { id: "uz", flag: "🇺🇿", name: "O‘zbekcha" },
-              { id: "ru", flag: "🇷🇺", name: "Русский" }
+              {
+                id: "uz",
+                flag: "🇺🇿",
+                name: "O‘zbekcha"
+              },
+              {
+                id: "ru",
+                flag: "🇷🇺",
+                name: "Русский"
+              }
             ].map(item => (
               <button
                 key={item.id}
                 onClick={() => changeLanguage(item.id)}
                 style={{
                   ...languageButtonStyle,
-                  background: theme === "light" ? "#f1f1f5" : "#252033",
-                  color: theme === "light" ? "#171321" : "white",
-                  border: language === item.id
-                    ? "2px solid #a78bfa"
-                    : "1px solid #40364f"
+                  background:
+                    theme === "light"
+                      ? "#f1f1f5"
+                      : "#252033",
+                  color:
+                    theme === "light"
+                      ? "#171321"
+                      : "white",
+                  border:
+                    language === item.id
+                      ? "2px solid #a78bfa"
+                      : "1px solid #40364f"
                 }}
               >
-                <span>{item.flag} {item.name}</span>
-                {language === item.id && <Check color="#a78bfa" />}
+                <span>
+                  {item.flag} {item.name}
+                </span>
+
+                {language === item.id && (
+                  <Check color="#a78bfa" />
+                )}
               </button>
             ))}
 
             <div style={{ marginTop: 22 }}>
               <p style={{ marginBottom: 14 }}>
-                <Sun size={18} style={{ verticalAlign: "middle" }} />{" "}
+                <Sun
+                  size={18}
+                  style={{ verticalAlign: "middle" }}
+                />{" "}
                 {t.theme}
               </p>
 
               {[
-                { id: "dark", icon: <Moon size={19} />, name: t.dark },
-                { id: "light", icon: <Sun size={19} />, name: t.light }
+                {
+                  id: "dark",
+                  icon: <Moon size={19} />,
+                  name: t.dark
+                },
+                {
+                  id: "light",
+                  icon: <Sun size={19} />,
+                  name: t.light
+                }
               ].map(item => (
                 <button
                   key={item.id}
                   onClick={() => changeTheme(item.id)}
                   style={{
                     ...languageButtonStyle,
-                    background: theme === "light" ? "#f1f1f5" : "#252033",
-                    color: theme === "light" ? "#171321" : "white",
-                    border: theme === item.id
-                      ? "2px solid #a78bfa"
-                      : "1px solid #40364f"
+                    background:
+                      theme === "light"
+                        ? "#f1f1f5"
+                        : "#252033",
+                    color:
+                      theme === "light"
+                        ? "#171321"
+                        : "white",
+                    border:
+                      theme === item.id
+                        ? "2px solid #a78bfa"
+                        : "1px solid #40364f"
                   }}
                 >
-                  <span style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 10
-                  }}>
+                  <span
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 10
+                    }}
+                  >
                     {item.icon}
                     {item.name}
                   </span>
 
-                  {theme === item.id && <Check color="#8b5cf6" />}
+                  {theme === item.id && (
+                    <Check color="#8b5cf6" />
+                  )}
                 </button>
               ))}
             </div>
@@ -999,19 +1157,34 @@ export default function App() {
         key={`${tab}-${selectedPlaylist?.id || "list"}`}
         className="page-liquid"
       >
+        {/* BOSH SAHIFA */}
         {tab === "home" && (
           <>
             <section className="welcome announcement-welcome">
               {announcements.length > 0 ? (
                 <>
-                  <p className="small">ESPOFIY • E'LON</p>
+                  <p className="small">
+                    ESPOFIY • E'LON
+                  </p>
 
-                  <h1 key={announcements[announcementIndex]?.id}>
-                    {announcements[announcementIndex]?.title}
+                  <h1
+                    key={
+                      announcements[announcementIndex]?.id
+                    }
+                  >
+                    {
+                      announcements[announcementIndex]
+                        ?.title
+                    }
                   </h1>
 
-                  <p key={`message-${announcements[announcementIndex]?.id}`}>
-                    {announcements[announcementIndex]?.message}
+                  <p
+                    key={`message-${announcements[announcementIndex]?.id}`}
+                  >
+                    {
+                      announcements[announcementIndex]
+                        ?.message
+                    }
                   </p>
 
                   {announcements.length > 1 && (
@@ -1019,7 +1192,11 @@ export default function App() {
                       {announcements.map((item, index) => (
                         <span
                           key={item.id}
-                          className={index === announcementIndex ? "active" : ""}
+                          className={
+                            index === announcementIndex
+                              ? "active"
+                              : ""
+                          }
                         />
                       ))}
                     </div>
@@ -1027,18 +1204,27 @@ export default function App() {
                 </>
               ) : (
                 <>
-                  <p className="small">{t.welcome}</p>
+                  <p className="small">
+                    {t.welcome}
+                  </p>
+
                   <h1>{t.hello}</h1>
+
                   <p>{t.subtitle}</p>
                 </>
               )}
             </section>
 
-            <h2 className="section-title">{t.newSongs}</h2>
+            <h2 className="section-title">
+              {t.newSongs}
+            </h2>
 
             <div className="songs songs-grid">
               {songs.map(song => (
-                <div className="song song-grid-card" key={song.id}>
+                <div
+                  className="song song-grid-card"
+                  key={song.id}
+                >
                   <SongCover />
 
                   <div className="song-info">
@@ -1059,15 +1245,20 @@ export default function App() {
               ))}
 
               {songs.length === 0 && (
-                <p className="small">{t.noSongs}</p>
+                <p className="small">
+                  {t.noSongs}
+                </p>
               )}
             </div>
           </>
         )}
 
+        {/* QIDIRUV */}
         {tab === "search" && (
           <>
-            <h2 className="section-title">{t.searchTitle}</h2>
+            <h2 className="section-title">
+              {t.searchTitle}
+            </h2>
 
             <input
               className="search-input"
@@ -1078,7 +1269,10 @@ export default function App() {
 
             <div className="songs">
               {filteredSongs.map(song => (
-                <div className="song" key={song.id}>
+                <div
+                  className="song"
+                  key={song.id}
+                >
                   <SongCover />
 
                   <div className="song-info">
@@ -1098,22 +1292,35 @@ export default function App() {
               ))}
 
               {filteredSongs.length === 0 && (
-                <p className="small">{t.notFound}</p>
+                <p className="small">
+                  {t.notFound}
+                </p>
               )}
             </div>
           </>
         )}
 
+        {/* MUSIQA YUKLASH */}
         {tab === "upload" && (
           <>
-            <h2 className="section-title">{t.uploadTitle}</h2>
+            <h2 className="section-title">
+              {t.uploadTitle}
+            </h2>
 
-            <p className="small" style={{ marginBottom: 20, lineHeight: 1.6 }}>
+            <p
+              className="small"
+              style={{
+                marginBottom: 20,
+                lineHeight: 1.6
+              }}
+            >
               {t.uploadSubtitle}
             </p>
 
             <div style={uploadCardStyle}>
-              <label style={formLabelStyle}>{t.songTitle}</label>
+              <label style={formLabelStyle}>
+                {t.songTitle}
+              </label>
 
               <input
                 value={uploadTitle}
@@ -1122,7 +1329,9 @@ export default function App() {
                 style={inputStyle}
               />
 
-              <label style={formLabelStyle}>{t.artistName}</label>
+              <label style={formLabelStyle}>
+                {t.artistName}
+              </label>
 
               <input
                 value={uploadArtist}
@@ -1131,7 +1340,9 @@ export default function App() {
                 style={inputStyle}
               />
 
-              <label style={formLabelStyle}>{t.genreName}</label>
+              <label style={formLabelStyle}>
+                {t.genreName}
+              </label>
 
               <input
                 value={uploadGenre}
@@ -1140,12 +1351,19 @@ export default function App() {
                 style={inputStyle}
               />
 
-              <label style={formLabelStyle}>{t.audioFile}</label>
+              <label style={formLabelStyle}>
+                {t.audioFile}
+              </label>
 
               <label style={fileButtonStyle}>
                 <Music size={20} />
 
-                <span style={{ overflow: "hidden", textOverflow: "ellipsis" }}>
+                <span
+                  style={{
+                    overflow: "hidden",
+                    textOverflow: "ellipsis"
+                  }}
+                >
                   {uploadAudio?.name || t.chooseAudio}
                 </span>
 
@@ -1154,16 +1372,27 @@ export default function App() {
                   type="file"
                   accept="audio/*"
                   style={{ display: "none" }}
-                  onChange={e => setUploadAudio(e.target.files?.[0] || null)}
+                  onChange={e =>
+                    setUploadAudio(
+                      e.target.files?.[0] || null
+                    )
+                  }
                 />
               </label>
 
-              <label style={formLabelStyle}>{t.coverFile}</label>
+              <label style={formLabelStyle}>
+                {t.coverFile}
+              </label>
 
               <label style={fileButtonStyle}>
                 <ImagePlus size={20} />
 
-                <span style={{ overflow: "hidden", textOverflow: "ellipsis" }}>
+                <span
+                  style={{
+                    overflow: "hidden",
+                    textOverflow: "ellipsis"
+                  }}
+                >
                   {uploadCover?.name || t.chooseImage}
                 </span>
 
@@ -1172,7 +1401,11 @@ export default function App() {
                   type="file"
                   accept="image/*"
                   style={{ display: "none" }}
-                  onChange={e => setUploadCover(e.target.files?.[0] || null)}
+                  onChange={e =>
+                    setUploadCover(
+                      e.target.files?.[0] || null
+                    )
+                  }
                 />
               </label>
 
@@ -1193,21 +1426,38 @@ export default function App() {
               <button
                 onClick={submitSong}
                 disabled={uploading}
-                style={{ ...mainButtonStyle, opacity: uploading ? 0.6 : 1 }}
+                style={{
+                  ...mainButtonStyle,
+                  opacity: uploading ? 0.6 : 1
+                }}
               >
-                {uploading
-                  ? <><Clock size={18} /> {t.sending}</>
-                  : <><Upload size={18} /> {t.sendSong}</>}
+                {uploading ? (
+                  <>
+                    <Clock size={18} />
+                    {t.sending}
+                  </>
+                ) : (
+                  <>
+                    <Upload size={18} />
+                    {t.sendSong}
+                  </>
+                )}
               </button>
             </div>
 
-            <h2 className="section-title" style={{ marginTop: 28 }}>
+            <h2
+              className="section-title"
+              style={{ marginTop: 28 }}
+            >
               {t.mySubmissions}
             </h2>
 
             <div className="songs">
               {mySubmissions.map(item => (
-                <div className="song" key={item.id}>
+                <div
+                  className="song"
+                  key={item.id}
+                >
                   <SongCover />
 
                   <div className="song-info">
@@ -1215,28 +1465,37 @@ export default function App() {
                     <span>{item.artist}</span>
                   </div>
 
-                  <span style={{
-                    fontSize: 11,
-                    color: item.is_published ? "#4ade80" : "#fbbf24",
-                    background: item.is_published
-                      ? "rgba(74,222,128,0.12)"
-                      : "rgba(251,191,36,0.12)",
-                    padding: "6px 9px",
-                    borderRadius: 8,
-                    whiteSpace: "nowrap"
-                  }}>
-                    {item.is_published ? t.approved : t.waiting}
+                  <span
+                    style={{
+                      fontSize: 11,
+                      color: item.is_published
+                        ? "#4ade80"
+                        : "#fbbf24",
+                      background: item.is_published
+                        ? "rgba(74,222,128,0.12)"
+                        : "rgba(251,191,36,0.12)",
+                      padding: "6px 9px",
+                      borderRadius: 8,
+                      whiteSpace: "nowrap"
+                    }}
+                  >
+                    {item.is_published
+                      ? t.approved
+                      : t.waiting}
                   </span>
                 </div>
               ))}
 
               {mySubmissions.length === 0 && (
-                <p className="small">{t.noSubmissions}</p>
+                <p className="small">
+                  {t.noSubmissions}
+                </p>
               )}
             </div>
           </>
         )}
 
+        {/* KUTUBXONA */}
         {tab === "library" && (
           <>
             {selectedPlaylist ? (
@@ -1250,7 +1509,10 @@ export default function App() {
                   </button>
 
                   <div style={{ flex: 1 }}>
-                    <h2 style={{ margin: 0 }}>{selectedPlaylist.name}</h2>
+                    <h2 style={{ margin: 0 }}>
+                      {selectedPlaylist.name}
+                    </h2>
+
                     <p className="small">
                       {playlistSongs.length} {t.songs}
                     </p>
@@ -1266,15 +1528,15 @@ export default function App() {
 
                 <div style={{ marginBottom: 20 }}>
                   <div style={coverPreviewStyle}>
-                    {selectedPlaylist.cover_url
-                      ? (
-                        <img
-                          src={selectedPlaylist.cover_url}
-                          alt="Playlist cover"
-                          style={coverImageStyle}
-                        />
-                      )
-                      : <ListMusic size={55} />}
+                    {selectedPlaylist.cover_url ? (
+                      <img
+                        src={selectedPlaylist.cover_url}
+                        alt="Playlist cover"
+                        style={coverImageStyle}
+                      />
+                    ) : (
+                      <ListMusic size={55} />
+                    )}
                   </div>
 
                   <label style={coverButtonStyle}>
@@ -1286,7 +1548,10 @@ export default function App() {
                       accept="image/*"
                       style={{ display: "none" }}
                       onChange={e => {
-                        uploadPlaylistCover(e.target.files?.[0]);
+                        uploadPlaylistCover(
+                          e.target.files?.[0]
+                        );
+
                         e.target.value = "";
                       }}
                     />
@@ -1295,7 +1560,10 @@ export default function App() {
 
                 <div className="songs">
                   {playlistSongs.map(song => (
-                    <div className="song" key={song.id}>
+                    <div
+                      className="song"
+                      key={song.id}
+                    >
                       <SongCover />
 
                       <div
@@ -1308,7 +1576,9 @@ export default function App() {
 
                       <button
                         className="play-small"
-                        onClick={() => removeSongFromPlaylist(song.id)}
+                        onClick={() =>
+                          removeSongFromPlaylist(song.id)
+                        }
                       >
                         <X size={18} />
                       </button>
@@ -1316,7 +1586,9 @@ export default function App() {
                   ))}
 
                   {playlistSongs.length === 0 && (
-                    <p className="small">{t.emptyPlaylist}</p>
+                    <p className="small">
+                      {t.emptyPlaylist}
+                    </p>
                   )}
                 </div>
 
@@ -1336,13 +1608,20 @@ export default function App() {
 
                       <select
                         value={selectedSongId}
-                        onChange={e => setSelectedSongId(e.target.value)}
+                        onChange={e =>
+                          setSelectedSongId(e.target.value)
+                        }
                         style={inputStyle}
                       >
-                        <option value="">{t.chooseSong}</option>
+                        <option value="">
+                          {t.chooseSong}
+                        </option>
 
                         {songs.map(song => (
-                          <option key={song.id} value={song.id}>
+                          <option
+                            key={song.id}
+                            value={song.id}
+                          >
                             {song.title} — {song.artist}
                           </option>
                         ))}
@@ -1361,7 +1640,9 @@ export default function App() {
             ) : (
               <>
                 <div style={headerStyle}>
-                  <h2 className="section-title">{t.myPlaylists}</h2>
+                  <h2 className="section-title">
+                    {t.myPlaylists}
+                  </h2>
 
                   <button
                     onClick={() => setShowCreate(true)}
@@ -1380,14 +1661,21 @@ export default function App() {
                       style={{ cursor: "pointer" }}
                     >
                       <div className="cover playlist-row-cover">
-                        {playlist.cover_url
-                          ? <img src={playlist.cover_url} alt="" />
-                          : <ListMusic />}
+                        {playlist.cover_url ? (
+                          <img
+                            src={playlist.cover_url}
+                            alt=""
+                          />
+                        ) : (
+                          <ListMusic />
+                        )}
                       </div>
 
                       <div className="song-info">
                         <b>{playlist.name}</b>
-                        <span>{playlist.songCount} {t.songs}</span>
+                        <span>
+                          {playlist.songCount} {t.songs}
+                        </span>
                       </div>
 
                       <button
@@ -1405,7 +1693,9 @@ export default function App() {
                   {playlists.length === 0 && (
                     <div className="library-card">
                       <Music2 size={35} />
+
                       <h3>{t.noPlaylist}</h3>
+
                       <p>{t.createFirst}</p>
 
                       <button
@@ -1437,7 +1727,9 @@ export default function App() {
 
                   <input
                     value={newPlaylistName}
-                    onChange={e => setNewPlaylistName(e.target.value)}
+                    onChange={e =>
+                      setNewPlaylistName(e.target.value)
+                    }
                     placeholder={t.playlistPlaceholder}
                     style={inputStyle}
                   />
@@ -1456,7 +1748,7 @@ export default function App() {
         )}
       </main>
 
-      {/* MINI PLAYER — BOSILGANDA KATTA PLAYER OCHILADI */}
+      {/* MINI PLAYER */}
       {currentSong && (
         <div
           className="player"
@@ -1492,9 +1784,11 @@ export default function App() {
               }}
               aria-label="Play or pause"
             >
-              {playing
-                ? <Pause size={22} />
-                : <Play size={22} fill="white" />}
+              {playing ? (
+                <Pause size={22} />
+              ) : (
+                <Play size={22} fill="white" />
+              )}
             </button>
 
             <button
@@ -1510,7 +1804,7 @@ export default function App() {
         </div>
       )}
 
-      {/* TO‘LIQ EKRANLI LIQUID GLASS PLAYER */}
+      {/* TO‘LIQ EKRANLI PLAYER */}
       {showFullPlayer && currentSong && (
         <div className="full-player">
           <div className="full-player-glow full-player-glow-one" />
@@ -1558,7 +1852,10 @@ export default function App() {
                   min="0"
                   max={duration || 0}
                   step="0.1"
-                  value={Math.min(currentTime, duration || 0)}
+                  value={Math.min(
+                    currentTime,
+                    duration || 0
+                  )}
                   onChange={seekAudio}
                   style={{
                     "--player-progress": `${progress}%`
@@ -1578,7 +1875,10 @@ export default function App() {
                   onClick={previousSong}
                   aria-label="Previous song"
                 >
-                  <SkipBack size={29} fill="currentColor" />
+                  <SkipBack
+                    size={29}
+                    fill="currentColor"
+                  />
                 </button>
 
                 <button
@@ -1586,9 +1886,17 @@ export default function App() {
                   onClick={togglePlay}
                   aria-label={playing ? "Pause" : "Play"}
                 >
-                  {playing
-                    ? <Pause size={31} fill="currentColor" />
-                    : <Play size={31} fill="currentColor" />}
+                  {playing ? (
+                    <Pause
+                      size={31}
+                      fill="currentColor"
+                    />
+                  ) : (
+                    <Play
+                      size={31}
+                      fill="currentColor"
+                    />
+                  )}
                 </button>
 
                 <button
@@ -1596,7 +1904,10 @@ export default function App() {
                   onClick={nextSong}
                   aria-label="Next song"
                 >
-                  <SkipForward size={29} fill="currentColor" />
+                  <SkipForward
+                    size={29}
+                    fill="currentColor"
+                  />
                 </button>
               </div>
 
@@ -1611,7 +1922,7 @@ export default function App() {
         </div>
       )}
 
-      {/* PASTKI LIQUID MENYU */}
+      {/* PASTKI MENYU */}
       <nav className="bottom-nav">
         <button
           onClick={() => {
